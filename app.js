@@ -330,13 +330,18 @@ function initFromHash() {
 
 function applyInitialViewOptions() {
   const searchParams = new URLSearchParams(window.location.search);
+  const scrollToViewer = () => {
+    const viewer = document.querySelector("#viewer");
+    window.scrollTo({ top: viewer.offsetTop - 16, behavior: "auto" });
+  };
 
   if (searchParams.get("view") === "viewer") {
-    document.querySelector("#viewer").scrollIntoView({ block: "start" });
+    scrollToViewer();
+    window.setTimeout(scrollToViewer, 250);
   }
 
   if (searchParams.get("qr") === "1") {
-    window.setTimeout(openQrModal, 300);
+    window.setTimeout(openQrModal, 600);
   }
 }
 
