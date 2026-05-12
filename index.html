@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Интерактивная трехмерная визуализация учебного оборудования для специальностей ОИБ, ПД и ЗЕМ."
+    />
+    <title>3D визуализация учебного оборудования</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="vendor/qrcode.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <header class="hero">
+      <nav class="topbar" aria-label="Основная навигация">
+        <a class="brand" href="#top" aria-label="На главную">
+          <span class="brand__mark">3D</span>
+          <span>Учебное оборудование</span>
+        </a>
+        <div class="topbar__links">
+          <a href="#specialties">Специальности</a>
+          <a href="#viewer">3D модель</a>
+          <a href="#qr">QR</a>
+        </div>
+      </nav>
+
+      <div class="hero__grid" id="top">
+        <div class="hero__content">
+          <p class="eyebrow">Для сервера учебного заведения</p>
+          <h1>Интерактивная трехмерная визуализация учебного оборудования</h1>
+          <p class="hero__lead">
+            Сайт помогает выбрать специальность, открыть карточку оборудования и
+            рассмотреть учебную 3D-модель прямо в браузере. QR-код можно
+            разместить на реальном стенде, чтобы быстро открыть нужную модель.
+          </p>
+          <div class="hero__actions">
+            <a class="button button--primary" href="#specialties">Выбрать специальность</a>
+            <a class="button button--ghost" href="#viewer">Открыть 3D просмотр</a>
+          </div>
+        </div>
+        <aside class="hero__panel" aria-label="Возможности сайта">
+          <div class="panel-card">
+            <span class="panel-card__icon">01</span>
+            <h2>Каталог</h2>
+            <p>ОИБ, ПД и ЗЕМ с отдельными наборами учебного оборудования.</p>
+          </div>
+          <div class="panel-card">
+            <span class="panel-card__icon">02</span>
+            <h2>3D просмотр</h2>
+            <p>Вращение, масштабирование и просмотр модели со всех сторон.</p>
+          </div>
+          <div class="panel-card">
+            <span class="panel-card__icon">03</span>
+            <h2>QR-доступ</h2>
+            <p>Ссылка на выбранную карточку оборудования для сканирования.</p>
+          </div>
+        </aside>
+      </div>
+    </header>
+
+    <main>
+      <section class="section" id="specialties" aria-labelledby="specialties-title">
+        <div class="section__header">
+          <p class="eyebrow">Шаг 1</p>
+          <h2 id="specialties-title">Выберите специальность</h2>
+          <p>
+            После выбора меняется набор оборудования, а первая модель сразу
+            загружается в интерактивный просмотрщик.
+          </p>
+        </div>
+        <div class="specialty-grid" id="specialty-grid"></div>
+      </section>
+
+      <section class="section section--viewer" id="viewer" aria-labelledby="viewer-title">
+        <div class="section__header">
+          <p class="eyebrow">Шаг 2</p>
+          <h2 id="viewer-title">Оборудование и 3D модель</h2>
+          <p>
+            Выберите объект из каталога. Локальная 3D-сцена работает без
+            внешних сервисов, а GLB-файлы можно заменить на модели учреждения.
+          </p>
+        </div>
+
+        <div class="workspace">
+          <aside class="equipment-list" aria-label="Список оборудования">
+            <div class="equipment-list__top">
+              <span id="active-specialty-label">ОИБ</span>
+              <span id="equipment-count">0 объектов</span>
+            </div>
+            <div id="equipment-list"></div>
+          </aside>
+
+          <article class="viewer-card">
+            <div class="viewer-shell">
+              <div class="local-viewer" id="local-viewer" role="img" aria-label="Интерактивный 3D макет оборудования">
+                <div class="local-viewer__scene" id="local-scene">
+                  <div class="scene-floor"></div>
+                  <div class="equipment-3d" id="equipment-shape" data-variant="sensor" aria-hidden="true">
+                    <span class="face face--front"></span>
+                    <span class="face face--back"></span>
+                    <span class="face face--left"></span>
+                    <span class="face face--right"></span>
+                    <span class="face face--top"></span>
+                    <span class="face face--bottom"></span>
+                    <span class="detail detail--one"></span>
+                    <span class="detail detail--two"></span>
+                    <span class="detail detail--three"></span>
+                  </div>
+                </div>
+                <div class="local-viewer__hint">Потяните мышью, чтобы повернуть 3D макет</div>
+              </div>
+            </div>
+
+            <div class="viewer-info">
+              <p class="eyebrow" id="equipment-type">Датчик</p>
+              <h3 id="equipment-title">Учебный объект</h3>
+              <p id="equipment-description"></p>
+              <ul class="feature-list" id="equipment-features"></ul>
+              <div class="viewer-info__actions">
+                <button class="button button--primary" id="qr-open" type="button">
+                  Показать QR-код
+                </button>
+                <a class="button button--ghost" id="model-link" href="#" target="_blank" rel="noreferrer">
+                  Открыть GLB-источник
+                </a>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section qr-section" id="qr" aria-labelledby="qr-title">
+        <div class="qr-section__content">
+          <p class="eyebrow">Шаг 3</p>
+          <h2 id="qr-title">QR-код для реального оборудования</h2>
+          <p>
+            На учебный стенд можно наклеить QR-код. После сканирования студент
+            открывает страницу на сервере учебного заведения с уже выбранной
+            3D-моделью и описанием объекта.
+          </p>
+        </div>
+        <button class="button button--primary" id="qr-open-secondary" type="button">
+          Сгенерировать QR для текущей модели
+        </button>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Статический сайт: подходит для размещения на Linux-сервере учебного заведения.</p>
+    </footer>
+
+    <div class="modal" id="qr-modal" aria-hidden="true" role="dialog" aria-labelledby="qr-modal-title">
+      <div class="modal__overlay" data-close-modal></div>
+      <div class="modal__content">
+        <button class="modal__close" type="button" data-close-modal aria-label="Закрыть">×</button>
+        <p class="eyebrow">QR-доступ</p>
+        <h2 id="qr-modal-title">Ссылка на модель</h2>
+        <canvas id="qr-canvas" width="240" height="240" aria-label="QR-код для выбранного оборудования"></canvas>
+        <p id="qr-caption"></p>
+        <a class="qr-link" id="qr-direct-link" href="#">Открыть ссылку</a>
+      </div>
+    </div>
+  </body>
+</html>
