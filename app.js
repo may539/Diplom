@@ -341,7 +341,7 @@ function applyInitialViewOptions() {
   }
 
   if (searchParams.get("qr") === "1") {
-    window.setTimeout(openQrModal, 600);
+    openQrModal();
   }
 }
 
