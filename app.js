@@ -318,13 +318,26 @@ function closeQrModal() {
 }
 
 function initFromHash() {
-  const params = new URLSearchParams(window.location.hash.replace("#", ""));
-  const equipmentId = params.get("equipment");
+  const hashParams = new URLSearchParams(window.location.hash.replace("#", ""));
+  const searchParams = new URLSearchParams(window.location.search);
+  const equipmentId = hashParams.get("equipment") || searchParams.get("equipment");
   if (!equipmentId) return;
 
   const { specialty, equipment } = findEquipment(equipmentId);
   activeSpecialtyId = specialty.id;
   activeEquipmentId = equipment.id;
+}
+
+function applyInitialViewOptions() {
+  const searchParams = new URLSearchParams(window.location.search);
+
+  if (searchParams.get("view") === "viewer") {
+    document.querySelector("#viewer").scrollIntoView({ block: "start" });
+  }
+
+  if (searchParams.get("qr") === "1") {
+    window.setTimeout(openQrModal, 300);
+  }
 }
 
 equipmentList.addEventListener("click", (event) => {
@@ -394,3 +407,4 @@ setViewerRotation();
 initFromHash();
 renderSpecialties();
 render();
+applyInitialViewOptions();
