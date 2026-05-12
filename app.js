@@ -335,6 +335,10 @@ function applyInitialViewOptions() {
     window.scrollTo({ top: viewer.offsetTop - 16, behavior: "auto" });
   };
 
+  if (searchParams.get("focus") === "viewer") {
+    document.body.classList.add("focus-viewer");
+  }
+
   if (searchParams.get("view") === "viewer") {
     scrollToViewer();
     window.setTimeout(scrollToViewer, 250);

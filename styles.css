@@ -764,6 +764,22 @@ body.modal-open {
   overflow: hidden;
 }
 
+body.focus-viewer .hero,
+body.focus-viewer #specialties,
+body.focus-viewer .qr-section,
+body.focus-viewer .footer {
+  display: none;
+}
+
+body.focus-viewer .section--viewer {
+  width: min(1280px, calc(100% - 32px));
+  padding: 24px 0;
+}
+
+body.focus-viewer .section--viewer .section__header {
+  margin-bottom: 16px;
+}
+
 @media (max-width: 940px) {
   .hero__grid,
   .workspace,
