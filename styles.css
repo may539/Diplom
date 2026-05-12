@@ -375,10 +375,6 @@ model-viewer {
   --poster-color: transparent;
 }
 
-.remote-model {
-  display: none;
-}
-
 .local-viewer {
   position: absolute;
   inset: 0;
@@ -745,7 +741,7 @@ model-viewer {
   cursor: pointer;
 }
 
-.modal img {
+.modal canvas {
   width: 220px;
   height: 220px;
   margin: 10px auto 16px;

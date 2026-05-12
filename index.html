@@ -9,11 +9,7 @@
     />
     <title>3D визуализация учебного оборудования</title>
     <link rel="stylesheet" href="styles.css" />
-    <script
-      type="module"
-      async
-      src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"
-    ></script>
+    <script src="vendor/qrcode.js"></script>
     <script defer src="app.js"></script>
   </head>
   <body>
@@ -32,7 +28,7 @@
 
       <div class="hero__grid" id="top">
         <div class="hero__content">
-          <p class="eyebrow">Linux-ready web demo</p>
+          <p class="eyebrow">Для сервера учебного заведения</p>
           <h1>Интерактивная трехмерная визуализация учебного оборудования</h1>
           <p class="hero__lead">
             Сайт помогает выбрать специальность, открыть карточку оборудования и
@@ -82,8 +78,8 @@
           <p class="eyebrow">Шаг 2</p>
           <h2 id="viewer-title">Оборудование и 3D модель</h2>
           <p>
-            Выберите объект из каталога. Для демо используются открытые
-            интернет-модели в формате GLB.
+            Выберите объект из каталога. Локальная 3D-сцена работает без
+            внешних сервисов, а GLB-файлы можно заменить на модели учреждения.
           </p>
         </div>
 
@@ -115,20 +111,6 @@
                 </div>
                 <div class="local-viewer__hint">Потяните мышью, чтобы повернуть 3D макет</div>
               </div>
-              <model-viewer
-                id="model-viewer"
-                class="remote-model"
-                camera-controls
-                auto-rotate
-                shadow-intensity="1"
-                exposure="1"
-                ar
-              >
-                <div class="model-fallback">
-                  <strong>3D модель загружается</strong>
-                  <span>Если модель не появилась, проверьте доступ к интернету.</span>
-                </div>
-              </model-viewer>
             </div>
 
             <div class="viewer-info">
@@ -141,7 +123,7 @@
                   Показать QR-код
                 </button>
                 <a class="button button--ghost" id="model-link" href="#" target="_blank" rel="noreferrer">
-                  Скачать / открыть GLB
+                  Открыть GLB-источник
                 </a>
               </div>
             </div>
@@ -155,7 +137,8 @@
           <h2 id="qr-title">QR-код для реального оборудования</h2>
           <p>
             На учебный стенд можно наклеить QR-код. После сканирования студент
-            попадает на страницу с уже выбранной 3D-моделью и описанием объекта.
+            открывает страницу на сервере учебного заведения с уже выбранной
+            3D-моделью и описанием объекта.
           </p>
         </div>
         <button class="button button--primary" id="qr-open-secondary" type="button">
@@ -165,7 +148,7 @@
     </main>
 
     <footer class="footer">
-      <p>Статический сайт: подходит для запуска на Linux через любой HTTP-сервер.</p>
+      <p>Статический сайт: подходит для размещения на Linux-сервере учебного заведения.</p>
     </footer>
 
     <div class="modal" id="qr-modal" aria-hidden="true" role="dialog" aria-labelledby="qr-modal-title">
@@ -174,7 +157,7 @@
         <button class="modal__close" type="button" data-close-modal aria-label="Закрыть">×</button>
         <p class="eyebrow">QR-доступ</p>
         <h2 id="qr-modal-title">Ссылка на модель</h2>
-        <img id="qr-image" src="" alt="QR-код для выбранного оборудования" />
+        <canvas id="qr-canvas" width="240" height="240" aria-label="QR-код для выбранного оборудования"></canvas>
         <p id="qr-caption"></p>
         <a class="qr-link" id="qr-direct-link" href="#">Открыть ссылку</a>
       </div>

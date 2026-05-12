@@ -173,7 +173,6 @@ const specialtyGrid = document.querySelector("#specialty-grid");
 const equipmentList = document.querySelector("#equipment-list");
 const activeSpecialtyLabel = document.querySelector("#active-specialty-label");
 const equipmentCount = document.querySelector("#equipment-count");
-const modelViewer = document.querySelector("#model-viewer");
 const equipmentType = document.querySelector("#equipment-type");
 const equipmentTitle = document.querySelector("#equipment-title");
 const equipmentDescription = document.querySelector("#equipment-description");
@@ -183,7 +182,7 @@ const localViewer = document.querySelector("#local-viewer");
 const localScene = document.querySelector("#local-scene");
 const equipmentShape = document.querySelector("#equipment-shape");
 const qrModal = document.querySelector("#qr-modal");
-const qrImage = document.querySelector("#qr-image");
+const qrCanvas = document.querySelector("#qr-canvas");
 const qrCaption = document.querySelector("#qr-caption");
 const qrDirectLink = document.querySelector("#qr-direct-link");
 const qrButtons = document.querySelectorAll("#qr-open, #qr-open-secondary");
@@ -264,9 +263,6 @@ function renderEquipmentList(specialty) {
 }
 
 function renderActiveEquipment(equipment) {
-  modelViewer.src = equipment.model;
-  modelViewer.alt = equipment.title;
-  modelViewer.dataset.environment = equipment.environment;
   localViewer.setAttribute("aria-label", `Интерактивный 3D макет: ${equipment.title}`);
   equipmentShape.dataset.variant = equipment.variant;
   equipmentType.textContent = equipment.type;
@@ -302,13 +298,39 @@ function openQrModal() {
   const { equipment } = findEquipment(activeEquipmentId);
   const url = equipmentUrl(equipment.id);
 
-  qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(url)}`;
+  drawQrCode(url);
   qrCaption.textContent = `${equipment.title}: отсканируйте код, чтобы открыть эту 3D-модель.`;
   qrDirectLink.href = url;
   qrDirectLink.textContent = url;
   qrModal.classList.add("is-open");
   qrModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
+}
+
+function drawQrCode(text) {
+  const qr = qrcode(0, "M");
+  qr.addData(text);
+  qr.make();
+
+  const context = qrCanvas.getContext("2d");
+  const moduleCount = qr.getModuleCount();
+  const margin = 12;
+  const size = qrCanvas.width;
+  const cellSize = Math.floor((size - margin * 2) / moduleCount);
+  const qrSize = cellSize * moduleCount;
+  const offset = Math.floor((size - qrSize) / 2);
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, size, size);
+  context.fillStyle = "#020617";
+
+  for (let row = 0; row < moduleCount; row += 1) {
+    for (let col = 0; col < moduleCount; col += 1) {
+      if (qr.isDark(row, col)) {
+        context.fillRect(offset + col * cellSize, offset + row * cellSize, cellSize, cellSize);
+      }
+    }
+  }
 }
 
 function closeQrModal() {
