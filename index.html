@@ -97,8 +97,26 @@
 
           <article class="viewer-card">
             <div class="viewer-shell">
+              <div class="local-viewer" id="local-viewer" role="img" aria-label="Интерактивный 3D макет оборудования">
+                <div class="local-viewer__scene" id="local-scene">
+                  <div class="scene-floor"></div>
+                  <div class="equipment-3d" id="equipment-shape" data-variant="sensor" aria-hidden="true">
+                    <span class="face face--front"></span>
+                    <span class="face face--back"></span>
+                    <span class="face face--left"></span>
+                    <span class="face face--right"></span>
+                    <span class="face face--top"></span>
+                    <span class="face face--bottom"></span>
+                    <span class="detail detail--one"></span>
+                    <span class="detail detail--two"></span>
+                    <span class="detail detail--three"></span>
+                  </div>
+                </div>
+                <div class="local-viewer__hint">Потяните мышью, чтобы повернуть 3D макет</div>
+              </div>
               <model-viewer
                 id="model-viewer"
+                class="remote-model"
                 camera-controls
                 auto-rotate
                 shadow-intensity="1"

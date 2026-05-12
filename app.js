@@ -19,6 +19,7 @@ const specialties = [
         ],
         model: "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
         environment: "neutral",
+        variant: "sensor",
       },
       {
         id: "ip-camera",
@@ -34,6 +35,7 @@ const specialties = [
         ],
         model: "https://modelviewer.dev/shared-assets/models/RobotExpressive.glb",
         environment: "neutral",
+        variant: "camera",
       },
       {
         id: "access-terminal",
@@ -49,6 +51,7 @@ const specialties = [
         ],
         model: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb",
         environment: "neutral",
+        variant: "terminal",
       },
     ],
   },
@@ -72,6 +75,7 @@ const specialties = [
         ],
         model: "https://modelviewer.dev/shared-assets/models/RobotExpressive.glb",
         environment: "neutral",
+        variant: "rifle",
       },
       {
         id: "body-armor",
@@ -87,6 +91,7 @@ const specialties = [
         ],
         model: "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
         environment: "neutral",
+        variant: "armor",
       },
       {
         id: "forensic-kit",
@@ -102,6 +107,7 @@ const specialties = [
         ],
         model: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb",
         environment: "neutral",
+        variant: "kit",
       },
     ],
   },
@@ -125,6 +131,7 @@ const specialties = [
         ],
         model: "https://modelviewer.dev/shared-assets/models/Houseplant.glb",
         environment: "landscape",
+        variant: "terrain",
       },
       {
         id: "survey-point",
@@ -140,6 +147,7 @@ const specialties = [
         ],
         model: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb",
         environment: "landscape",
+        variant: "point",
       },
       {
         id: "cadastre-parcel",
@@ -155,6 +163,7 @@ const specialties = [
         ],
         model: "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
         environment: "landscape",
+        variant: "parcel",
       },
     ],
   },
@@ -170,6 +179,9 @@ const equipmentTitle = document.querySelector("#equipment-title");
 const equipmentDescription = document.querySelector("#equipment-description");
 const equipmentFeatures = document.querySelector("#equipment-features");
 const modelLink = document.querySelector("#model-link");
+const localViewer = document.querySelector("#local-viewer");
+const localScene = document.querySelector("#local-scene");
+const equipmentShape = document.querySelector("#equipment-shape");
 const qrModal = document.querySelector("#qr-modal");
 const qrImage = document.querySelector("#qr-image");
 const qrCaption = document.querySelector("#qr-caption");
@@ -255,6 +267,8 @@ function renderActiveEquipment(equipment) {
   modelViewer.src = equipment.model;
   modelViewer.alt = equipment.title;
   modelViewer.dataset.environment = equipment.environment;
+  localViewer.setAttribute("aria-label", `Интерактивный 3D макет: ${equipment.title}`);
+  equipmentShape.dataset.variant = equipment.variant;
   equipmentType.textContent = equipment.type;
   equipmentTitle.textContent = equipment.title;
   equipmentDescription.textContent = equipment.description;
@@ -343,6 +357,40 @@ window.addEventListener("hashchange", () => {
   render();
 });
 
+let isDragging = false;
+let lastPointer = { x: 0, y: 0 };
+let rotation = { x: -22, y: 38 };
+
+function setViewerRotation() {
+  localScene.style.setProperty("--viewer-rx", `${rotation.x}deg`);
+  localScene.style.setProperty("--viewer-ry", `${rotation.y}deg`);
+}
+
+localViewer.addEventListener("pointerdown", (event) => {
+  isDragging = true;
+  lastPointer = { x: event.clientX, y: event.clientY };
+  localViewer.setPointerCapture(event.pointerId);
+});
+
+localViewer.addEventListener("pointermove", (event) => {
+  if (!isDragging) return;
+
+  const deltaX = event.clientX - lastPointer.x;
+  const deltaY = event.clientY - lastPointer.y;
+  rotation = {
+    x: Math.max(-70, Math.min(12, rotation.x - deltaY * 0.35)),
+    y: rotation.y + deltaX * 0.45,
+  };
+  lastPointer = { x: event.clientX, y: event.clientY };
+  setViewerRotation();
+});
+
+localViewer.addEventListener("pointerup", (event) => {
+  isDragging = false;
+  localViewer.releasePointerCapture(event.pointerId);
+});
+
+setViewerRotation();
 initFromHash();
 renderSpecialties();
 render();
