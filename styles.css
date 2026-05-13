@@ -493,6 +493,27 @@ model-viewer {
   background: var(--accent);
 }
 
+.hotspot__label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  display: none;
+  width: max-content;
+  max-width: 190px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #fff;
+  font-size: 0.76rem;
+  line-height: 1.2;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.22);
+  transform: translateX(-50%);
+}
+
+.hotspot.is-active .hotspot__label {
+  display: block;
+}
+
 .face,
 .detail {
   position: absolute;
@@ -743,6 +764,16 @@ model-viewer {
   background: rgba(94, 234, 212, 0.08);
   color: var(--muted);
   line-height: 1.5;
+}
+
+.annotation-panel strong,
+.annotation-panel span {
+  display: block;
+}
+
+.annotation-panel strong {
+  margin-bottom: 4px;
+  color: var(--accent);
 }
 
 .error-state {

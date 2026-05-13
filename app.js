@@ -129,9 +129,9 @@ function renderAnnotation(hotspots, index) {
   const hotspot = hotspots[index];
 
   activeHotspotIndex = index;
-  annotationPanel.textContent = hotspot
-    ? `${hotspot.label}: ${hotspot.note}`
-    : "Для этой модели аннотации не добавлены.";
+  annotationPanel.innerHTML = hotspot
+    ? `<strong>${escapeHtml(hotspot.label)}</strong><span>${escapeHtml(hotspot.note)}</span>`
+    : "<span>Для этой модели аннотации не добавлены.</span>";
 
   hotspotLayer.querySelectorAll("[data-hotspot-index]").forEach((button) => {
     button.classList.toggle("is-active", Number(button.dataset.hotspotIndex) === index);
@@ -149,7 +149,8 @@ function renderHotspots(hotspots = []) {
           style="--x: ${Number(hotspot.x)}%; --y: ${Number(hotspot.y)}%;"
           aria-label="${escapeHtml(hotspot.label)}"
         >
-          <span>${index + 1}</span>
+          <span class="hotspot__number">${index + 1}</span>
+          <span class="hotspot__label">${escapeHtml(hotspot.label)}</span>
         </button>
       `,
     )
