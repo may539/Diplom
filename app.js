@@ -18,6 +18,7 @@ const qrImage = document.querySelector("#qr-image");
 const qrCaption = document.querySelector("#qr-caption");
 const qrDirectLink = document.querySelector("#qr-direct-link");
 const qrButtons = document.querySelectorAll("#qr-open, #qr-open-secondary");
+const isFileMode = window.location.protocol === "file:";
 
 let specialties = [];
 let activeSpecialtyId = "";
@@ -81,6 +82,17 @@ function readEquipmentIdFromLocation() {
 }
 
 function setEquipmentRoute(equipmentId, mode = "push") {
+  if (isFileMode) {
+    const nextHash = `equipment=${equipmentId}`;
+
+    if (window.location.hash.replace("#", "") === nextHash) {
+      return;
+    }
+
+    history[mode === "replace" ? "replaceState" : "pushState"](null, "", `#${nextHash}`);
+    return;
+  }
+
   const nextPath = equipmentPath(equipmentId);
 
   if (window.location.pathname === nextPath && !window.location.search && !window.location.hash) {
@@ -216,12 +228,22 @@ async function openQrModal() {
   const { equipment } = findEquipment(activeEquipmentId);
 
   qrCaption.textContent = "Генерация QR-кода на сервере...";
+  qrImage.hidden = false;
   qrImage.removeAttribute("src");
   qrDirectLink.removeAttribute("href");
   qrDirectLink.textContent = "";
   qrModal.classList.add("is-open");
   qrModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
+
+  if (isFileMode) {
+    qrImage.hidden = true;
+    qrCaption.textContent =
+      "Для корректного QR-кода запустите сервер командой npm start и откройте http://localhost:8080.";
+    qrDirectLink.href = "http://localhost:8080";
+    qrDirectLink.textContent = "Открыть серверную версию";
+    return;
+  }
 
   try {
     const response = await fetch(`/api/qr/${encodeURIComponent(equipment.id)}`);
@@ -268,13 +290,25 @@ function applyInitialViewOptions() {
 }
 
 async function loadData() {
-  const response = await fetch("/api/specialties");
+  if (isFileMode && window.EQUIPMENT_DATA) {
+    specialties = window.EQUIPMENT_DATA;
+  } else {
+    try {
+      const response = await fetch("/api/specialties");
 
-  if (!response.ok) {
-    throw new Error("Specialties API request failed");
+      if (!response.ok) {
+        throw new Error("Specialties API request failed");
+      }
+
+      specialties = await response.json();
+    } catch (error) {
+      if (!window.EQUIPMENT_DATA) {
+        throw error;
+      }
+
+      specialties = window.EQUIPMENT_DATA;
+    }
   }
-
-  specialties = await response.json();
 
   if (!specialties.length || !allEquipment().length) {
     throw new Error("Equipment data is empty");

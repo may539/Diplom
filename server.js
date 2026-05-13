@@ -135,12 +135,16 @@ app.get("/api/qr/:equipmentId", async (req, res, next) => {
   }
 });
 
-app.get("/app.js", (req, res) => {
+app.get(["/app.js", "/equipment/app.js"], (req, res) => {
   res.sendFile(path.join(rootDir, "app.js"));
 });
 
-app.get("/styles.css", (req, res) => {
+app.get(["/styles.css", "/equipment/styles.css"], (req, res) => {
   res.sendFile(path.join(rootDir, "styles.css"));
+});
+
+app.get(["/data/equipment-data.js", "/equipment/data/equipment-data.js"], (req, res) => {
+  res.sendFile(path.join(rootDir, "data", "equipment-data.js"));
 });
 
 app.use("/vendor", express.static(path.join(rootDir, "vendor"), { index: false }));
