@@ -413,7 +413,8 @@ model-viewer {
   aspect-ratio: 1;
   transform:
     rotateX(var(--viewer-rx, -22deg))
-    rotateY(var(--viewer-ry, 38deg));
+    rotateY(var(--viewer-ry, 38deg))
+    scale(var(--viewer-scale, 1));
   transform-style: preserve-3d;
   transition: transform 180ms ease;
 }
@@ -865,6 +866,92 @@ model-viewer {
   color: var(--accent);
 }
 
+.admin-hero {
+  padding-bottom: 26px;
+}
+
+.admin-intro {
+  max-width: 860px;
+}
+
+.admin-card {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 30px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+}
+
+.admin-card h2 {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.admin-card__hint {
+  margin-top: 0;
+  color: var(--muted);
+}
+
+.admin-form {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-form label {
+  display: grid;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.admin-form input,
+.admin-form textarea,
+.admin-form select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font: inherit;
+}
+
+.admin-form input:focus,
+.admin-form textarea:focus,
+.admin-form select:focus {
+  outline: 2px solid rgba(94, 234, 212, 0.45);
+  outline-offset: 1px;
+}
+
+.admin-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-status {
+  margin: 0;
+  min-height: 24px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.admin-status.is-error {
+  color: #fca5a5;
+}
+
+.admin-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  justify-content: center;
+}
+
+.modal__content--printable {
+  width: min(460px, 100%);
+}
+
 body.modal-open {
   overflow: hidden;
 }
@@ -924,5 +1011,36 @@ body.focus-viewer .section--viewer .section__header {
   .viewer-info,
   .qr-section {
     padding: 24px;
+  }
+
+  .admin-form__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .modal.is-open,
+  .modal.is-open * {
+    visibility: visible;
+  }
+
+  .modal.is-open {
+    position: static;
+    padding: 0;
+    display: block;
+  }
+
+  .modal__content--printable {
+    margin: 0 auto;
+    border: none;
+    box-shadow: none;
+  }
+
+  .no-print {
+    display: none !important;
   }
 }

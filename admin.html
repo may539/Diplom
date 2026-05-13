@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Админ-панель для добавления 3D-моделей и печати QR-кодов." />
+    <title>Админ-панель · 3D оборудование</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="vendor/qrcode.js"></script>
+    <script defer src="admin.js"></script>
+  </head>
+  <body>
+    <header class="hero admin-hero">
+      <nav class="topbar" aria-label="Навигация админ-панели">
+        <a class="brand" href="/" aria-label="На сайт">
+          <span class="brand__mark">3D</span>
+          <span>Админ-панель</span>
+        </a>
+        <div class="topbar__links">
+          <a href="/">Каталог</a>
+          <a href="#admin-form">Добавить модель</a>
+        </div>
+      </nav>
+
+      <div class="admin-intro">
+        <p class="eyebrow">Доступ для администраторов</p>
+        <h1>Добавление 3D-моделей в базу SQL</h1>
+        <p class="hero__lead">
+          Заполните форму, сохраните новую модель и сразу получите QR-код в модальном окне для печати.
+        </p>
+      </div>
+    </header>
+
+    <main class="section">
+      <article class="admin-card" id="admin-form" aria-labelledby="admin-form-title">
+        <h2 id="admin-form-title">Новая 3D-модель</h2>
+        <p class="admin-card__hint">Пароль по умолчанию: <code>admin123</code> (измените через переменную `ADMIN_PASSWORD`).</p>
+        <form id="equipment-form" class="admin-form">
+          <label>
+            Пароль администратора *
+            <input type="password" name="password" required />
+          </label>
+
+          <label>
+            Специальность *
+            <select name="specialtyId" id="specialty-select" required></select>
+          </label>
+
+          <label>
+            Название модели *
+            <input type="text" name="title" required />
+          </label>
+
+          <label>
+            Тип (например: ОИБ · датчики) *
+            <input type="text" name="type" required />
+          </label>
+
+          <label>
+            Краткое описание *
+            <input type="text" name="short" required />
+          </label>
+
+          <label>
+            Полное описание *
+            <textarea name="description" rows="4" required></textarea>
+          </label>
+
+          <label>
+            Особенности (каждая с новой строки)
+            <textarea name="features" rows="4" placeholder="пункт 1&#10;пункт 2"></textarea>
+          </label>
+
+          <label>
+            Ссылка на GLB-модель *
+            <input type="url" name="model" required />
+          </label>
+
+          <div class="admin-form__row">
+            <label>
+              Вариант 3D-формы
+              <input type="text" name="variant" value="sensor" />
+            </label>
+            <label>
+              Окружение
+              <input type="text" name="environment" value="neutral" />
+            </label>
+          </div>
+
+          <button class="button button--primary" type="submit">Добавить модель и сгенерировать QR</button>
+          <p id="form-status" class="admin-status" role="status" aria-live="polite"></p>
+        </form>
+      </article>
+    </main>
+
+    <div class="modal" id="qr-modal" aria-hidden="true" role="dialog" aria-labelledby="qr-modal-title">
+      <div class="modal__overlay" data-close-modal></div>
+      <div class="modal__content modal__content--printable">
+        <button class="modal__close no-print" type="button" data-close-modal aria-label="Закрыть">×</button>
+        <p class="eyebrow">QR для печати</p>
+        <h2 id="qr-modal-title">Новая модель добавлена</h2>
+        <canvas id="qr-canvas" width="280" height="280" aria-label="QR-код для новой модели"></canvas>
+        <p id="qr-caption"></p>
+        <a class="qr-link" id="qr-direct-link" href="#" target="_blank" rel="noreferrer">Открыть модель</a>
+        <div class="admin-modal-actions no-print">
+          <button class="button button--primary" id="print-qr" type="button">Печать QR</button>
+          <button class="button button--ghost" type="button" data-close-modal>Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

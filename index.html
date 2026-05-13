@@ -9,7 +9,7 @@
     />
     <title>3D визуализация учебного оборудования</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="data/equipment-data.js"></script>
+    <script src="vendor/qrcode.js"></script>
     <script defer src="app.js"></script>
   </head>
   <body>
@@ -23,6 +23,7 @@
           <a href="#specialties">Специальности</a>
           <a href="#viewer">3D модель</a>
           <a href="#qr">QR</a>
+          <a href="/admin.html">Админ</a>
         </div>
       </nav>
 
@@ -109,8 +110,7 @@
                     <span class="detail detail--three"></span>
                   </div>
                 </div>
-                <div class="hotspot-layer" id="hotspot-layer" aria-label="Аннотации модели"></div>
-                <div class="local-viewer__hint">Потяните мышью, чтобы повернуть 3D макет</div>
+                <div class="local-viewer__hint">Потяните мышью для вращения, колесо — для масштаба</div>
               </div>
             </div>
 
@@ -118,14 +118,8 @@
               <p class="eyebrow" id="equipment-type">Датчик</p>
               <h3 id="equipment-title">Учебный объект</h3>
               <p id="equipment-description"></p>
-              <div class="annotation-panel" id="annotation-panel">
-                Выберите точку на модели, чтобы увидеть аннотацию.
-              </div>
               <ul class="feature-list" id="equipment-features"></ul>
               <div class="viewer-info__actions">
-                <button class="button button--ghost" id="wireframe-toggle" type="button" aria-pressed="false">
-                  Сетка
-                </button>
                 <button class="button button--primary" id="qr-open" type="button">
                   Показать QR-код
                 </button>
@@ -164,7 +158,7 @@
         <button class="modal__close" type="button" data-close-modal aria-label="Закрыть">×</button>
         <p class="eyebrow">QR-доступ</p>
         <h2 id="qr-modal-title">Ссылка на модель</h2>
-        <img id="qr-image" src="" alt="QR-код для выбранного оборудования" />
+        <canvas id="qr-canvas" width="240" height="240" aria-label="QR-код для выбранного оборудования"></canvas>
         <p id="qr-caption"></p>
         <a class="qr-link" id="qr-direct-link" href="#">Открыть ссылку</a>
       </div>

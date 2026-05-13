@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --check server.js && node --check app.js && node --check scripts/verify-data-fallback.js && node scripts/verify-data-fallback.js"
+    "dev": "node server.js",
+    "check": "node --check app.js && node --check admin.js && node --check server.js"
   },
   "repository": {
     "type": "git",
@@ -20,6 +21,6 @@
   "homepage": "https://github.com/may539/Diplom#readme",
   "dependencies": {
     "express": "^5.2.1",
-    "qrcode": "^1.5.4"
+    "sqlite3": "^6.0.1"
   }
 }
