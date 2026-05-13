@@ -13,6 +13,9 @@ const equipmentShape = document.querySelector("#equipment-shape");
 const hotspotLayer = document.querySelector("#hotspot-layer");
 const annotationPanel = document.querySelector("#annotation-panel");
 const wireframeToggle = document.querySelector("#wireframe-toggle");
+const zoomOutButton = document.querySelector("#zoom-out");
+const zoomInButton = document.querySelector("#zoom-in");
+const zoomResetButton = document.querySelector("#zoom-reset");
 const qrModal = document.querySelector("#qr-modal");
 const qrImage = document.querySelector("#qr-image");
 const qrCaption = document.querySelector("#qr-caption");
@@ -29,6 +32,8 @@ let isDragging = false;
 let lastPointer = { x: 0, y: 0 };
 let rotation = { x: -22, y: 38 };
 let zoom = 1;
+const ZOOM_MIN = 0.7;
+const ZOOM_MAX = 1.8;
 
 function escapeHtml(value) {
   return String(value)
@@ -107,6 +112,19 @@ function setViewerTransform() {
   localScene.style.setProperty("--viewer-rx", `${rotation.x}deg`);
   localScene.style.setProperty("--viewer-ry", `${rotation.y}deg`);
   localScene.style.setProperty("--viewer-scale", zoom.toFixed(3));
+}
+
+function syncZoomControls() {
+  if (!zoomResetButton) return;
+  zoomResetButton.textContent = `${Math.round(zoom * 100)}%`;
+  zoomOutButton.disabled = zoom <= ZOOM_MIN + 0.001;
+  zoomInButton.disabled = zoom >= ZOOM_MAX - 0.001;
+}
+
+function setZoom(nextZoom) {
+  zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, nextZoom));
+  setViewerTransform();
+  syncZoomControls();
 }
 
 function renderSpecialties() {
@@ -402,7 +420,7 @@ window.addEventListener("hashchange", scheduleSyncFromLocation);
 window.addEventListener("popstate", scheduleSyncFromLocation);
 
 localViewer.addEventListener("pointerdown", (event) => {
-  if (event.target.closest("[data-hotspot-index]")) {
+  if (event.target.closest("[data-hotspot-index], [data-viewer-control]")) {
     return;
   }
 
@@ -433,15 +451,26 @@ localViewer.addEventListener(
   "wheel",
   (event) => {
     event.preventDefault();
-    zoom = Math.max(0.7, Math.min(1.8, zoom - event.deltaY * 0.0015));
-    setViewerTransform();
+    setZoom(zoom - event.deltaY * 0.0015);
   },
   { passive: false },
 );
 
+zoomOutButton.addEventListener("click", () => {
+  setZoom(zoom - 0.12);
+});
+
+zoomInButton.addEventListener("click", () => {
+  setZoom(zoom + 0.12);
+});
+
+zoomResetButton.addEventListener("click", () => {
+  setZoom(1);
+});
+
 async function init() {
   try {
-    setViewerTransform();
+    setZoom(1);
     await loadData();
     initFromLocation();
     renderSpecialties();

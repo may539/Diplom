@@ -712,6 +712,42 @@ model-viewer {
   text-align: center;
 }
 
+.viewer-zoom-controls {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 4;
+  display: flex;
+  gap: 8px;
+}
+
+.zoom-control {
+  min-width: 42px;
+  height: 42px;
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #10223a;
+  font: inherit;
+  font-size: 1.2rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.zoom-control:hover {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.zoom-control:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.zoom-control--label {
+  min-width: 68px;
+  font-size: 0.9rem;
+}
+
 .model-fallback {
   display: grid;
   height: 100%;
