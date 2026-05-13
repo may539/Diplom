@@ -105,12 +105,29 @@ async function initDb() {
     )
   `);
 
+  const tableInfo = await all("PRAGMA table_info(equipment)");
+  const hasHotspotsColumn = tableInfo.some((column) => column.name === "hotspots_json");
+  if (!hasHotspotsColumn) {
+    await run("ALTER TABLE equipment ADD COLUMN hotspots_json TEXT NOT NULL DEFAULT '[]'");
+  }
+
+  const seedSpecialties = readJsonSeed();
+  const seedEquipment = seedSpecialties.flatMap((specialty) => specialty.equipment || []);
+  for (const equipment of seedEquipment) {
+    await run(
+      `UPDATE equipment
+       SET hotspots_json = ?
+       WHERE id = ?
+         AND (hotspots_json IS NULL OR hotspots_json = '[]' OR hotspots_json = 'null')`,
+      [JSON.stringify(Array.isArray(equipment.hotspots) ? equipment.hotspots : []), equipment.id],
+    );
+  }
+
   const countRow = await get("SELECT COUNT(*) AS count FROM specialties");
   if ((countRow?.count || 0) > 0) {
     return;
   }
 
-  const seedSpecialties = readJsonSeed();
   for (const [index, specialty] of seedSpecialties.entries()) {
     await run(
       "INSERT INTO specialties (id, code, title, description, sort_order) VALUES (?, ?, ?, ?, ?)",
