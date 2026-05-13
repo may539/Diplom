@@ -456,6 +456,7 @@ model-viewer {
 .hotspot-layer {
   position: absolute;
   inset: 0;
+  z-index: 3;
   transform-style: preserve-3d;
   pointer-events: none;
 }

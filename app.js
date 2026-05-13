@@ -308,8 +308,15 @@ hotspotLayer.addEventListener("click", (event) => {
   const hotspot = event.target.closest("[data-hotspot-index]");
   if (!hotspot) return;
 
+  event.stopPropagation();
   const { equipment } = findEquipment(activeEquipmentId);
   renderAnnotation(equipment.hotspots || [], Number(hotspot.dataset.hotspotIndex));
+});
+
+hotspotLayer.addEventListener("pointerdown", (event) => {
+  if (event.target.closest("[data-hotspot-index]")) {
+    event.stopPropagation();
+  }
 });
 
 wireframeToggle.addEventListener("click", () => {
@@ -343,6 +350,10 @@ window.addEventListener("hashchange", () => {
 });
 
 localViewer.addEventListener("pointerdown", (event) => {
+  if (event.target.closest("[data-hotspot-index]")) {
+    return;
+  }
+
   isDragging = true;
   lastPointer = { x: event.clientX, y: event.clientY };
   localViewer.setPointerCapture(event.pointerId);
