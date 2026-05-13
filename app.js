@@ -400,10 +400,13 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-window.addEventListener("hashchange", () => {
+function syncFromLocation() {
   initFromHash();
   render();
-});
+}
+
+window.addEventListener("hashchange", syncFromLocation);
+window.addEventListener("popstate", syncFromLocation);
 
 let isDragging = false;
 let lastPointer = { x: 0, y: 0 };
