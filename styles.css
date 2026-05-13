@@ -457,7 +457,6 @@ model-viewer {
   position: absolute;
   inset: 0;
   z-index: 3;
-  transform-style: preserve-3d;
   pointer-events: none;
 }
 
@@ -479,7 +478,7 @@ model-viewer {
   box-shadow: 0 0 0 8px rgba(251, 191, 36, 0.22), 0 14px 28px rgba(15, 23, 42, 0.22);
   cursor: pointer;
   pointer-events: auto;
-  transform: translate3d(-50%, -50%, 118px);
+  transform: translate(-50%, -50%);
 }
 
 .hotspot::after {
