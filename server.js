@@ -252,7 +252,7 @@ app.post("/api/admin/equipment", async (req, res) => {
 
 app.use(express.static(__dirname));
 
-app.get("*", (_req, res) => {
+app.use((_req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
