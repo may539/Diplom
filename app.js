@@ -215,7 +215,22 @@ function equipmentUrl(equipmentId) {
 
 function setHash(equipmentId) {
   const nextHash = `equipment=${equipmentId}`;
-  if (window.location.hash.replace("#", "") !== nextHash) {
+  const currentHash = window.location.hash.replace("#", "");
+  
+  if (currentHash === nextHash) {
+    return;
+  }
+  
+  // When transitioning to equipment hash:
+  // - From root (no hash): push to create history entry
+  // - From another equipment hash: push to allow navigation between equipment
+  // - From navigation hash (#specialties, #viewer, etc): replace to skip intermediate state
+  const isEquipmentHash = currentHash.startsWith("equipment=");
+  const isNavigationHash = currentHash && !isEquipmentHash;
+  
+  if (isNavigationHash) {
+    history.replaceState(null, "", `#${nextHash}`);
+  } else {
     history.pushState(null, "", `#${nextHash}`);
   }
 }
@@ -400,13 +415,27 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
+let syncScheduled = false;
+
 function syncFromLocation() {
   initFromHash();
   render();
 }
 
-window.addEventListener("hashchange", syncFromLocation);
-window.addEventListener("popstate", syncFromLocation);
+function scheduleSyncFromLocation() {
+  if (syncScheduled) {
+    return;
+  }
+
+  syncScheduled = true;
+  window.requestAnimationFrame(() => {
+    syncScheduled = false;
+    syncFromLocation();
+  });
+}
+
+window.addEventListener("hashchange", scheduleSyncFromLocation);
+window.addEventListener("popstate", scheduleSyncFromLocation);
 
 let isDragging = false;
 let lastPointer = { x: 0, y: 0 };
