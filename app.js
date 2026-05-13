@@ -216,7 +216,7 @@ function equipmentUrl(equipmentId) {
 function setHash(equipmentId) {
   const nextHash = `equipment=${equipmentId}`;
   if (window.location.hash.replace("#", "") !== nextHash) {
-    history.replaceState(null, "", `#${nextHash}`);
+    history.pushState(null, "", `#${nextHash}`);
   }
 }
 
@@ -343,7 +343,11 @@ function initFromHash() {
   const hashParams = new URLSearchParams(window.location.hash.replace("#", ""));
   const searchParams = new URLSearchParams(window.location.search);
   const equipmentId = hashParams.get("equipment") || searchParams.get("equipment");
-  if (!equipmentId) return;
+  if (!equipmentId) {
+    activeSpecialtyId = specialties[0].id;
+    activeEquipmentId = specialties[0].equipment[0].id;
+    return;
+  }
 
   const { specialty, equipment } = findEquipment(equipmentId);
   activeSpecialtyId = specialty.id;
