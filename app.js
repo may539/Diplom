@@ -1,4 +1,4 @@
-const specialties = [
+let specialties = [
   {
     id: "oib",
     code: "ОИБ",
@@ -191,10 +191,15 @@ let activeSpecialtyId = specialties[0].id;
 let activeEquipmentId = specialties[0].equipment[0].id;
 
 function findSpecialty(id) {
+  if (specialties.length === 0) return null;
   return specialties.find((specialty) => specialty.id === id) || specialties[0];
 }
 
 function findEquipment(id) {
+  if (specialties.length === 0) {
+    return { specialty: null, equipment: null };
+  }
+
   for (const specialty of specialties) {
     const equipment = specialty.equipment.find((item) => item.id === id);
     if (equipment) {
@@ -232,18 +237,6 @@ function renderSpecialties() {
       `,
     )
     .join("");
-
-  specialtyGrid.addEventListener("click", (event) => {
-    const card = event.target.closest("[data-specialty]");
-    if (!card) return;
-
-    const specialty = findSpecialty(card.dataset.specialty);
-    activeSpecialtyId = specialty.id;
-    activeEquipmentId = specialty.equipment[0].id;
-    setHash(activeEquipmentId);
-    render();
-    document.querySelector("#viewer").scrollIntoView({ behavior: "smooth", block: "start" });
-  });
 }
 
 function renderEquipmentList(specialty) {
@@ -285,6 +278,9 @@ function syncActiveStates() {
 
 function render() {
   const specialty = findSpecialty(activeSpecialtyId);
+  if (!specialty || specialty.equipment.length === 0) {
+    return;
+  }
   const equipment = specialty.equipment.find((item) => item.id === activeEquipmentId) || specialty.equipment[0];
 
   activeSpecialtyId = specialty.id;
@@ -296,6 +292,7 @@ function render() {
 
 function openQrModal() {
   const { equipment } = findEquipment(activeEquipmentId);
+  if (!equipment) return;
   const url = equipmentUrl(equipment.id);
 
   drawQrCode(url);
@@ -346,9 +343,59 @@ function initFromHash() {
   if (!equipmentId) return;
 
   const { specialty, equipment } = findEquipment(equipmentId);
+  if (!specialty || !equipment) return;
   activeSpecialtyId = specialty.id;
   activeEquipmentId = equipment.id;
 }
+
+function isValidCatalog(data) {
+  return (
+    Array.isArray(data) &&
+    data.length > 0 &&
+    data.every(
+      (specialty) =>
+        specialty &&
+        typeof specialty.id === "string" &&
+        Array.isArray(specialty.equipment) &&
+        specialty.equipment.length > 0,
+    )
+  );
+}
+
+async function loadCatalogFromApi() {
+  try {
+    const response = await fetch("/api/specialties", { headers: { Accept: "application/json" } });
+    if (!response.ok) {
+      return;
+    }
+
+    const data = await response.json();
+    if (!isValidCatalog(data)) {
+      return;
+    }
+
+    specialties = data;
+    initFromHash();
+    renderSpecialties();
+    render();
+  } catch (_error) {
+    // Статическая версия страницы продолжит работать на локальном массиве.
+  }
+}
+
+specialtyGrid.addEventListener("click", (event) => {
+  const card = event.target.closest("[data-specialty]");
+  if (!card) return;
+
+  const specialty = findSpecialty(card.dataset.specialty);
+  if (!specialty || specialty.equipment.length === 0) return;
+
+  activeSpecialtyId = specialty.id;
+  activeEquipmentId = specialty.equipment[0].id;
+  setHash(activeEquipmentId);
+  render();
+  document.querySelector("#viewer").scrollIntoView({ behavior: "smooth", block: "start" });
+});
 
 function applyInitialViewOptions() {
   const searchParams = new URLSearchParams(window.location.search);
@@ -376,6 +423,7 @@ equipmentList.addEventListener("click", (event) => {
   if (!button) return;
 
   const { specialty, equipment } = findEquipment(button.dataset.equipment);
+  if (!specialty || !equipment) return;
   activeSpecialtyId = specialty.id;
   activeEquipmentId = equipment.id;
   setHash(equipment.id);
@@ -451,3 +499,4 @@ initFromHash();
 renderSpecialties();
 render();
 applyInitialViewOptions();
+loadCatalogFromApi();
