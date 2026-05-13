@@ -1,174 +1,3 @@
-let specialties = [
-  {
-    id: "oib",
-    code: "ОИБ",
-    title: "Обеспечение информационной безопасности",
-    description: "Датчики, камеры, контроллеры доступа и устройства мониторинга.",
-    equipment: [
-      {
-        id: "security-sensor",
-        title: "Многофункциональный датчик",
-        type: "ОИБ · датчики",
-        short: "Контроль движения, температуры и состояния помещения.",
-        description:
-          "Учебный макет показывает принцип работы датчика охраны: корпус, зона контроля и подключение к системе мониторинга.",
-        features: [
-          "изучение состава охранного датчика",
-          "разбор типовых сценариев тревоги",
-          "подготовка QR-ссылки для лабораторного стенда",
-        ],
-        model: "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
-        environment: "neutral",
-        variant: "sensor",
-      },
-      {
-        id: "ip-camera",
-        title: "IP-камера наблюдения",
-        type: "ОИБ · видеонаблюдение",
-        short: "Камера для изучения углов обзора и размещения на объекте.",
-        description:
-          "Карточка демонстрирует оборудование видеонаблюдения и может использоваться для объяснения зон покрытия.",
-        features: [
-          "интерактивный осмотр корпуса",
-          "привязка к учебному помещению",
-          "быстрый доступ по QR-коду",
-        ],
-        model: "https://modelviewer.dev/shared-assets/models/RobotExpressive.glb",
-        environment: "neutral",
-        variant: "camera",
-      },
-      {
-        id: "access-terminal",
-        title: "Терминал контроля доступа",
-        type: "ОИБ · СКУД",
-        short: "Считыватель карт и панель идентификации.",
-        description:
-          "Модель помогает показать элементы терминала и объяснить логику допуска пользователей в защищенные зоны.",
-        features: [
-          "демонстрация интерфейса считывателя",
-          "связь с контроллером доступа",
-          "использование в практической работе",
-        ],
-        model: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb",
-        environment: "neutral",
-        variant: "terminal",
-      },
-    ],
-  },
-  {
-    id: "pd",
-    code: "ПД",
-    title: "Правоохранительная деятельность",
-    description: "Тренажеры, учебные образцы оружия и средства защиты.",
-    equipment: [
-      {
-        id: "training-rifle",
-        title: "Учебный макет ружья",
-        type: "ПД · учебное оружие",
-        short: "Безопасный тренажер для изучения устройства и правил обращения.",
-        description:
-          "Карточка предназначена для безопасной демонстрации элементов учебного макета без использования реального оружия.",
-        features: [
-          "изучение основных частей макета",
-          "визуальная инструкция перед практикой",
-          "QR-код на учебном шкафу или стенде",
-        ],
-        model: "https://modelviewer.dev/shared-assets/models/RobotExpressive.glb",
-        environment: "neutral",
-        variant: "rifle",
-      },
-      {
-        id: "body-armor",
-        title: "Средства индивидуальной защиты",
-        type: "ПД · экипировка",
-        short: "Шлем, бронежилет и элементы защитного комплекта.",
-        description:
-          "3D-просмотр подходит для демонстрации комплектации, назначения элементов и правильного размещения.",
-        features: [
-          "обзор защитных элементов",
-          "сценарии использования на занятиях",
-          "быстрый доступ с мобильного устройства",
-        ],
-        model: "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
-        environment: "neutral",
-        variant: "armor",
-      },
-      {
-        id: "forensic-kit",
-        title: "Криминалистический набор",
-        type: "ПД · лаборатория",
-        short: "Комплект инструментов для учебных следственных действий.",
-        description:
-          "Интерактивная карточка помогает объяснить назначение инструментов набора и порядок подготовки рабочего места.",
-        features: [
-          "визуальный список компонентов",
-          "подготовка к лабораторной работе",
-          "ссылка на методические материалы",
-        ],
-        model: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb",
-        environment: "neutral",
-        variant: "kit",
-      },
-    ],
-  },
-  {
-    id: "zem",
-    code: "ЗЕМ",
-    title: "Земельно-имущественные отношения",
-    description: "3D-рельеф, кадастровые участки и учебные геодезические объекты.",
-    equipment: [
-      {
-        id: "terrain-relief",
-        title: "3D визуализация рельефа",
-        type: "ЗЕМ · рельеф",
-        short: "Учебная поверхность для анализа высот и уклонов.",
-        description:
-          "Модель рельефа используется для объяснения перепадов высот, профилей местности и проектных ограничений.",
-        features: [
-          "вращение цифровой модели местности",
-          "изучение уклонов и высотных отметок",
-          "QR-ссылка для полевой практики",
-        ],
-        model: "https://modelviewer.dev/shared-assets/models/Houseplant.glb",
-        environment: "landscape",
-        variant: "terrain",
-      },
-      {
-        id: "survey-point",
-        title: "Геодезический пункт",
-        type: "ЗЕМ · геодезия",
-        short: "Точка опорной сети и учебный знак на местности.",
-        description:
-          "Карточка показывает назначение геодезического пункта и связь объекта с измерениями на территории.",
-        features: [
-          "объяснение опорной точки",
-          "привязка к карте или плану",
-          "открытие модели по QR-коду",
-        ],
-        model: "https://modelviewer.dev/shared-assets/models/NeilArmstrong.glb",
-        environment: "landscape",
-        variant: "point",
-      },
-      {
-        id: "cadastre-parcel",
-        title: "Кадастровый участок",
-        type: "ЗЕМ · кадастр",
-        short: "Учебный объект для разбора границ и характеристик участка.",
-        description:
-          "Сцена помогает связать 3D-представление участка с кадастровой информацией и учебными заданиями.",
-        features: [
-          "просмотр формы участка",
-          "подготовка к анализу границ",
-          "ссылка на цифровой паспорт объекта",
-        ],
-        model: "https://modelviewer.dev/shared-assets/models/Astronaut.glb",
-        environment: "landscape",
-        variant: "parcel",
-      },
-    ],
-  },
-];
-
 const specialtyGrid = document.querySelector("#specialty-grid");
 const equipmentList = document.querySelector("#equipment-list");
 const activeSpecialtyLabel = document.querySelector("#active-specialty-label");
@@ -181,25 +10,49 @@ const modelLink = document.querySelector("#model-link");
 const localViewer = document.querySelector("#local-viewer");
 const localScene = document.querySelector("#local-scene");
 const equipmentShape = document.querySelector("#equipment-shape");
+const hotspotLayer = document.querySelector("#hotspot-layer");
+const annotationPanel = document.querySelector("#annotation-panel");
+const wireframeToggle = document.querySelector("#wireframe-toggle");
 const qrModal = document.querySelector("#qr-modal");
-const qrCanvas = document.querySelector("#qr-canvas");
+const qrImage = document.querySelector("#qr-image");
 const qrCaption = document.querySelector("#qr-caption");
 const qrDirectLink = document.querySelector("#qr-direct-link");
 const qrButtons = document.querySelectorAll("#qr-open, #qr-open-secondary");
+const isFileMode = window.location.protocol === "file:";
 
-let activeSpecialtyId = specialties[0].id;
-let activeEquipmentId = specialties[0].equipment[0].id;
+let specialties = [];
+let activeSpecialtyId = "";
+let activeEquipmentId = "";
+let activeHotspotIndex = 0;
+let isWireframe = false;
+let isDragging = false;
+let lastPointer = { x: 0, y: 0 };
+let rotation = { x: -22, y: 38 };
+let zoom = 1;
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function allEquipment() {
+  return specialties.flatMap((specialty) =>
+    specialty.equipment.map((equipment) => ({
+      ...equipment,
+      specialtyId: specialty.id,
+    })),
+  );
+}
 
 function findSpecialty(id) {
-  if (specialties.length === 0) return null;
   return specialties.find((specialty) => specialty.id === id) || specialties[0];
 }
 
 function findEquipment(id) {
-  if (specialties.length === 0) {
-    return { specialty: null, equipment: null };
-  }
-
   for (const specialty of specialties) {
     const equipment = specialty.equipment.find((item) => item.id === id);
     if (equipment) {
@@ -213,26 +66,57 @@ function findEquipment(id) {
   };
 }
 
-function equipmentUrl(equipmentId) {
-  const baseUrl = `${window.location.origin}${window.location.pathname}`;
-  return `${baseUrl}#equipment=${equipmentId}`;
+function equipmentPath(equipmentId) {
+  return `/equipment/${encodeURIComponent(equipmentId)}`;
 }
 
-function setHash(equipmentId) {
-  const nextHash = `equipment=${equipmentId}`;
-  if (window.location.hash.replace("#", "") !== nextHash) {
-    history.replaceState(null, "", `#${nextHash}`);
+function readEquipmentIdFromLocation() {
+  const pathMatch = window.location.pathname.match(/^\/equipment\/([^/]+)$/);
+  const hashParams = new URLSearchParams(window.location.hash.replace("#", ""));
+  const searchParams = new URLSearchParams(window.location.search);
+
+  if (pathMatch) {
+    return decodeURIComponent(pathMatch[1]);
   }
+
+  return hashParams.get("equipment") || searchParams.get("equipment");
+}
+
+function setEquipmentRoute(equipmentId, mode = "push") {
+  if (isFileMode) {
+    const nextHash = `equipment=${equipmentId}`;
+
+    if (window.location.hash.replace("#", "") === nextHash) {
+      return;
+    }
+
+    history[mode === "replace" ? "replaceState" : "pushState"](null, "", `#${nextHash}`);
+    return;
+  }
+
+  const nextPath = equipmentPath(equipmentId);
+
+  if (window.location.pathname === nextPath && !window.location.search && !window.location.hash) {
+    return;
+  }
+
+  history[mode === "replace" ? "replaceState" : "pushState"](null, "", nextPath);
+}
+
+function setViewerTransform() {
+  localScene.style.setProperty("--viewer-rx", `${rotation.x}deg`);
+  localScene.style.setProperty("--viewer-ry", `${rotation.y}deg`);
+  localScene.style.setProperty("--viewer-scale", zoom.toFixed(3));
 }
 
 function renderSpecialties() {
   specialtyGrid.innerHTML = specialties
     .map(
       (specialty) => `
-        <button class="specialty-card" type="button" data-specialty="${specialty.id}">
-          <span class="specialty-card__code">${specialty.code}</span>
-          <h3>${specialty.title}</h3>
-          <p>${specialty.description}</p>
+        <button class="specialty-card" type="button" data-specialty="${escapeHtml(specialty.id)}">
+          <span class="specialty-card__code">${escapeHtml(specialty.code)}</span>
+          <h3>${escapeHtml(specialty.title)}</h3>
+          <p>${escapeHtml(specialty.description)}</p>
         </button>
       `,
     )
@@ -246,13 +130,47 @@ function renderEquipmentList(specialty) {
   equipmentList.innerHTML = specialty.equipment
     .map(
       (equipment) => `
-        <button class="equipment-button" type="button" data-equipment="${equipment.id}">
-          <strong>${equipment.title}</strong>
-          <span>${equipment.short}</span>
+        <button class="equipment-button" type="button" data-equipment="${escapeHtml(equipment.id)}">
+          <strong>${escapeHtml(equipment.title)}</strong>
+          <span>${escapeHtml(equipment.short)}</span>
         </button>
       `,
     )
     .join("");
+}
+
+function renderAnnotation(hotspots, index) {
+  const hotspot = hotspots[index];
+
+  activeHotspotIndex = index;
+  annotationPanel.innerHTML = hotspot
+    ? `<strong>${escapeHtml(hotspot.label)}</strong><span>${escapeHtml(hotspot.note)}</span>`
+    : "<span>Для этой модели аннотации не добавлены.</span>";
+
+  hotspotLayer.querySelectorAll("[data-hotspot-index]").forEach((button) => {
+    button.classList.toggle("is-active", Number(button.dataset.hotspotIndex) === index);
+  });
+}
+
+function renderHotspots(hotspots = []) {
+  hotspotLayer.innerHTML = hotspots
+    .map(
+      (hotspot, index) => `
+        <button
+          class="hotspot"
+          type="button"
+          data-hotspot-index="${index}"
+          style="--x: ${Number(hotspot.x)}%; --y: ${Number(hotspot.y)}%;"
+          aria-label="${escapeHtml(hotspot.label)}"
+        >
+          <span class="hotspot__number">${index + 1}</span>
+          <span class="hotspot__label">${escapeHtml(hotspot.label)}</span>
+        </button>
+      `,
+    )
+    .join("");
+
+  renderAnnotation(hotspots, 0);
 }
 
 function renderActiveEquipment(equipment) {
@@ -262,8 +180,8 @@ function renderActiveEquipment(equipment) {
   equipmentTitle.textContent = equipment.title;
   equipmentDescription.textContent = equipment.description;
   modelLink.href = equipment.model;
-
-  equipmentFeatures.innerHTML = equipment.features.map((feature) => `<li>${feature}</li>`).join("");
+  equipmentFeatures.innerHTML = equipment.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("");
+  renderHotspots(equipment.hotspots);
 }
 
 function syncActiveStates() {
@@ -276,11 +194,14 @@ function syncActiveStates() {
   });
 }
 
+function syncWireframe() {
+  localViewer.classList.toggle("is-wireframe", isWireframe);
+  wireframeToggle.setAttribute("aria-pressed", String(isWireframe));
+  wireframeToggle.classList.toggle("is-active", isWireframe);
+}
+
 function render() {
   const specialty = findSpecialty(activeSpecialtyId);
-  if (!specialty || specialty.equipment.length === 0) {
-    return;
-  }
   const equipment = specialty.equipment.find((item) => item.id === activeEquipmentId) || specialty.equipment[0];
 
   activeSpecialtyId = specialty.id;
@@ -288,45 +209,58 @@ function render() {
   renderEquipmentList(specialty);
   renderActiveEquipment(equipment);
   syncActiveStates();
+  syncWireframe();
 }
 
-function openQrModal() {
-  const { equipment } = findEquipment(activeEquipmentId);
-  if (!equipment) return;
-  const url = equipmentUrl(equipment.id);
+function initFromLocation() {
+  const equipmentId = readEquipmentIdFromLocation();
 
-  drawQrCode(url);
-  qrCaption.textContent = `${equipment.title}: отсканируйте код, чтобы открыть эту 3D-модель.`;
-  qrDirectLink.href = url;
-  qrDirectLink.textContent = url;
+  if (!equipmentId) {
+    activeSpecialtyId = specialties[0].id;
+    activeEquipmentId = specialties[0].equipment[0].id;
+    return;
+  }
+
+  const { specialty, equipment } = findEquipment(equipmentId);
+  activeSpecialtyId = specialty.id;
+  activeEquipmentId = equipment.id;
+}
+
+async function openQrModal() {
+  const { equipment } = findEquipment(activeEquipmentId);
+
+  qrCaption.textContent = "Генерация QR-кода на сервере...";
+  qrImage.hidden = false;
+  qrImage.removeAttribute("src");
+  qrDirectLink.removeAttribute("href");
+  qrDirectLink.textContent = "";
   qrModal.classList.add("is-open");
   qrModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
-}
 
-function drawQrCode(text) {
-  const qr = qrcode(0, "M");
-  qr.addData(text);
-  qr.make();
+  if (isFileMode) {
+    qrImage.hidden = true;
+    qrCaption.textContent =
+      "Для корректного QR-кода запустите сервер командой npm start и откройте http://localhost:8080.";
+    qrDirectLink.href = "http://localhost:8080";
+    qrDirectLink.textContent = "Открыть серверную версию";
+    return;
+  }
 
-  const context = qrCanvas.getContext("2d");
-  const moduleCount = qr.getModuleCount();
-  const margin = 12;
-  const size = qrCanvas.width;
-  const cellSize = Math.floor((size - margin * 2) / moduleCount);
-  const qrSize = cellSize * moduleCount;
-  const offset = Math.floor((size - qrSize) / 2);
+  try {
+    const response = await fetch(`/api/qr/${encodeURIComponent(equipment.id)}`);
 
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, size, size);
-  context.fillStyle = "#020617";
-
-  for (let row = 0; row < moduleCount; row += 1) {
-    for (let col = 0; col < moduleCount; col += 1) {
-      if (qr.isDark(row, col)) {
-        context.fillRect(offset + col * cellSize, offset + row * cellSize, cellSize, cellSize);
-      }
+    if (!response.ok) {
+      throw new Error("QR API request failed");
     }
+
+    const qr = await response.json();
+    qrImage.src = qr.imageDataUrl;
+    qrCaption.textContent = `${qr.title}: отсканируйте код, чтобы открыть эту 3D-модель.`;
+    qrDirectLink.href = qr.url;
+    qrDirectLink.textContent = qr.url;
+  } catch (error) {
+    qrCaption.textContent = "Не удалось получить QR-код с сервера.";
   }
 }
 
@@ -335,67 +269,6 @@ function closeQrModal() {
   qrModal.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
 }
-
-function initFromHash() {
-  const hashParams = new URLSearchParams(window.location.hash.replace("#", ""));
-  const searchParams = new URLSearchParams(window.location.search);
-  const equipmentId = hashParams.get("equipment") || searchParams.get("equipment");
-  if (!equipmentId) return;
-
-  const { specialty, equipment } = findEquipment(equipmentId);
-  if (!specialty || !equipment) return;
-  activeSpecialtyId = specialty.id;
-  activeEquipmentId = equipment.id;
-}
-
-function isValidCatalog(data) {
-  return (
-    Array.isArray(data) &&
-    data.length > 0 &&
-    data.every(
-      (specialty) =>
-        specialty &&
-        typeof specialty.id === "string" &&
-        Array.isArray(specialty.equipment) &&
-        specialty.equipment.length > 0,
-    )
-  );
-}
-
-async function loadCatalogFromApi() {
-  try {
-    const response = await fetch("/api/specialties", { headers: { Accept: "application/json" } });
-    if (!response.ok) {
-      return;
-    }
-
-    const data = await response.json();
-    if (!isValidCatalog(data)) {
-      return;
-    }
-
-    specialties = data;
-    initFromHash();
-    renderSpecialties();
-    render();
-  } catch (_error) {
-    // Статическая версия страницы продолжит работать на локальном массиве.
-  }
-}
-
-specialtyGrid.addEventListener("click", (event) => {
-  const card = event.target.closest("[data-specialty]");
-  if (!card) return;
-
-  const specialty = findSpecialty(card.dataset.specialty);
-  if (!specialty || specialty.equipment.length === 0) return;
-
-  activeSpecialtyId = specialty.id;
-  activeEquipmentId = specialty.equipment[0].id;
-  setHash(activeEquipmentId);
-  render();
-  document.querySelector("#viewer").scrollIntoView({ behavior: "smooth", block: "start" });
-});
 
 function applyInitialViewOptions() {
   const searchParams = new URLSearchParams(window.location.search);
@@ -418,16 +291,73 @@ function applyInitialViewOptions() {
   }
 }
 
+async function loadData() {
+  if (isFileMode && window.EQUIPMENT_DATA) {
+    specialties = window.EQUIPMENT_DATA;
+  } else {
+    try {
+      const response = await fetch("/api/specialties");
+
+      if (!response.ok) {
+        throw new Error("Specialties API request failed");
+      }
+
+      specialties = await response.json();
+    } catch (error) {
+      if (!window.EQUIPMENT_DATA) {
+        throw error;
+      }
+
+      specialties = window.EQUIPMENT_DATA;
+    }
+  }
+
+  if (!specialties.length || !allEquipment().length) {
+    throw new Error("Equipment data is empty");
+  }
+}
+
+specialtyGrid.addEventListener("click", (event) => {
+  const card = event.target.closest("[data-specialty]");
+  if (!card) return;
+
+  const specialty = findSpecialty(card.dataset.specialty);
+  activeSpecialtyId = specialty.id;
+  activeEquipmentId = specialty.equipment[0].id;
+  setEquipmentRoute(activeEquipmentId);
+  render();
+  document.querySelector("#viewer").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
 equipmentList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-equipment]");
   if (!button) return;
 
   const { specialty, equipment } = findEquipment(button.dataset.equipment);
-  if (!specialty || !equipment) return;
   activeSpecialtyId = specialty.id;
   activeEquipmentId = equipment.id;
-  setHash(equipment.id);
+  setEquipmentRoute(equipment.id);
   render();
+});
+
+hotspotLayer.addEventListener("click", (event) => {
+  const hotspot = event.target.closest("[data-hotspot-index]");
+  if (!hotspot) return;
+
+  event.stopPropagation();
+  const { equipment } = findEquipment(activeEquipmentId);
+  renderAnnotation(equipment.hotspots || [], Number(hotspot.dataset.hotspotIndex));
+});
+
+hotspotLayer.addEventListener("pointerdown", (event) => {
+  if (event.target.closest("[data-hotspot-index]")) {
+    event.stopPropagation();
+  }
+});
+
+wireframeToggle.addEventListener("click", () => {
+  isWireframe = !isWireframe;
+  syncWireframe();
 });
 
 qrButtons.forEach((button) => button.addEventListener("click", openQrModal));
@@ -444,23 +374,38 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-window.addEventListener("hashchange", () => {
-  initFromHash();
+let syncScheduled = false;
+
+function syncFromLocation() {
+  initFromLocation();
+
+  if (window.location.hash.replace("#", "").startsWith("equipment=")) {
+    setEquipmentRoute(activeEquipmentId, "replace");
+  }
+
   render();
-});
-
-let isDragging = false;
-let lastPointer = { x: 0, y: 0 };
-let rotation = { x: -22, y: 38 };
-let zoom = 1;
-
-function setViewerTransform() {
-  localScene.style.setProperty("--viewer-rx", `${rotation.x}deg`);
-  localScene.style.setProperty("--viewer-ry", `${rotation.y}deg`);
-  localScene.style.setProperty("--viewer-scale", zoom.toFixed(3));
 }
 
+function scheduleSyncFromLocation() {
+  if (syncScheduled) {
+    return;
+  }
+
+  syncScheduled = true;
+  window.requestAnimationFrame(() => {
+    syncScheduled = false;
+    syncFromLocation();
+  });
+}
+
+window.addEventListener("hashchange", scheduleSyncFromLocation);
+window.addEventListener("popstate", scheduleSyncFromLocation);
+
 localViewer.addEventListener("pointerdown", (event) => {
+  if (event.target.closest("[data-hotspot-index]")) {
+    return;
+  }
+
   isDragging = true;
   lastPointer = { x: event.clientX, y: event.clientY };
   localViewer.setPointerCapture(event.pointerId);
@@ -494,9 +439,18 @@ localViewer.addEventListener(
   { passive: false },
 );
 
-setViewerTransform();
-initFromHash();
-renderSpecialties();
-render();
-applyInitialViewOptions();
-loadCatalogFromApi();
+async function init() {
+  try {
+    setViewerTransform();
+    await loadData();
+    initFromLocation();
+    renderSpecialties();
+    render();
+    applyInitialViewOptions();
+  } catch (error) {
+    specialtyGrid.innerHTML = '<p class="error-state">Не удалось загрузить каталог оборудования.</p>';
+    equipmentList.innerHTML = '<p class="error-state">Проверьте запуск Node.js сервера.</p>';
+  }
+}
+
+init();

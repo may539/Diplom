@@ -1,22 +1,23 @@
-const fs = require("node:fs");
-const path = require("node:path");
 const express = require("express");
+const fs = require("fs");
+const fsp = require("fs/promises");
+const os = require("os");
+const path = require("path");
+const QRCode = require("qrcode");
 const sqlite3 = require("sqlite3").verbose();
-const seedData = require("./seed-data");
-
-const PORT = Number(process.env.PORT || 8080);
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
 
 const app = express();
-app.use(express.json({ limit: "1mb" }));
-
-const dataDir = path.join(__dirname, "data");
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
-
-const dbPath = path.join(dataDir, "equipment.sqlite");
+const port = Number(process.env.PORT || 8080);
+const host = process.env.HOST || "0.0.0.0";
+const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+const rootDir = __dirname;
+const dataJsonPath = path.join(rootDir, "data", "equipment.json");
+const dbPath = path.join(rootDir, "data", "equipment.sqlite");
+const scanLogPath = path.join(rootDir, "logs", "scan.log");
 const db = new sqlite3.Database(dbPath);
+
+app.set("trust proxy", true);
+app.use(express.json({ limit: "1mb" }));
 
 function run(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -26,6 +27,18 @@ function run(sql, params = []) {
         return;
       }
       resolve(this);
+    });
+  });
+}
+
+function get(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (error, row) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(row || null);
     });
   });
 }
@@ -42,13 +55,24 @@ function all(sql, params = []) {
   });
 }
 
+function readJsonSeed() {
+  return JSON.parse(fs.readFileSync(dataJsonPath, "utf8"));
+}
+
 function slugify(value) {
-  return value
+  return String(value)
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9а-яё]+/gi, "-")
     .replace(/^-+|-+$/g, "")
     .replace(/-+/g, "-");
+}
+
+function normalizeArray(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item) => typeof item === "string" && item.trim().length > 0).map((item) => item.trim());
 }
 
 async function initDb() {
@@ -75,26 +99,29 @@ async function initDb() {
       model TEXT NOT NULL,
       environment TEXT NOT NULL DEFAULT 'neutral',
       variant TEXT NOT NULL DEFAULT 'sensor',
+      hotspots_json TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (specialty_id) REFERENCES specialties(id) ON DELETE CASCADE
     )
   `);
 
-  const specialtyRows = await all("SELECT id FROM specialties LIMIT 1");
-  if (specialtyRows.length > 0) {
+  const countRow = await get("SELECT COUNT(*) AS count FROM specialties");
+  if ((countRow?.count || 0) > 0) {
     return;
   }
 
-  for (const [index, specialty] of seedData.entries()) {
+  const seedSpecialties = readJsonSeed();
+  for (const [index, specialty] of seedSpecialties.entries()) {
     await run(
       "INSERT INTO specialties (id, code, title, description, sort_order) VALUES (?, ?, ?, ?, ?)",
       [specialty.id, specialty.code, specialty.title, specialty.description, index],
     );
-    for (const equipment of specialty.equipment) {
+
+    for (const equipment of specialty.equipment || []) {
       await run(
         `INSERT INTO equipment
-          (id, specialty_id, title, type, short, description, features_json, model, environment, variant)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          (id, specialty_id, title, type, short, description, features_json, model, environment, variant, hotspots_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           equipment.id,
           specialty.id,
@@ -102,28 +129,29 @@ async function initDb() {
           equipment.type,
           equipment.short,
           equipment.description,
-          JSON.stringify(equipment.features || []),
+          JSON.stringify(normalizeArray(equipment.features)),
           equipment.model,
           equipment.environment || "neutral",
           equipment.variant || "sensor",
+          JSON.stringify(Array.isArray(equipment.hotspots) ? equipment.hotspots : []),
         ],
       );
     }
   }
 }
 
-async function getSpecialtiesPayload() {
+async function readSpecialties() {
   const specialties = await all(
     "SELECT id, code, title, description FROM specialties ORDER BY sort_order ASC, code ASC",
   );
-  const equipment = await all(
-    `SELECT id, specialty_id, title, type, short, description, features_json, model, environment, variant
+  const equipmentRows = await all(
+    `SELECT id, specialty_id, title, type, short, description, features_json, model, environment, variant, hotspots_json
      FROM equipment
      ORDER BY created_at ASC, title ASC`,
   );
 
   const bySpecialty = new Map();
-  for (const row of equipment) {
+  for (const row of equipmentRows) {
     const normalized = {
       id: row.id,
       title: row.title,
@@ -134,6 +162,7 @@ async function getSpecialtiesPayload() {
       model: row.model,
       environment: row.environment,
       variant: row.variant,
+      hotspots: JSON.parse(row.hotspots_json || "[]"),
     };
     if (!bySpecialty.has(row.specialty_id)) {
       bySpecialty.set(row.specialty_id, []);
@@ -147,36 +176,153 @@ async function getSpecialtiesPayload() {
   }));
 }
 
+async function allEquipment() {
+  const specialties = await readSpecialties();
+  return specialties.flatMap((specialty) =>
+    specialty.equipment.map((equipment) => ({
+      ...equipment,
+      specialtyId: specialty.id,
+      specialtyCode: specialty.code,
+      specialtyTitle: specialty.title,
+    })),
+  );
+}
+
+async function findEquipment(equipmentId) {
+  const equipment = await allEquipment();
+  return equipment.find((item) => item.id === equipmentId) || null;
+}
+
+function getLanAddress() {
+  const interfaces = os.networkInterfaces();
+
+  for (const entries of Object.values(interfaces)) {
+    for (const entry of entries || []) {
+      if (entry.family === "IPv4" && !entry.internal) {
+        return entry.address;
+      }
+    }
+  }
+
+  return "127.0.0.1";
+}
+
+function isLoopbackHost(hostname) {
+  return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname);
+}
+
+function resolvePublicBaseUrl(req) {
+  if (process.env.PUBLIC_BASE_URL) {
+    return process.env.PUBLIC_BASE_URL.replace(/\/$/, "");
+  }
+
+  const protocol = String(req.headers["x-forwarded-proto"] || req.protocol || "http").split(",")[0];
+  const requestHost = req.get("host") || `${getLanAddress()}:${port}`;
+  const baseUrl = new URL(`${protocol}://${requestHost}`);
+
+  if (isLoopbackHost(baseUrl.hostname)) {
+    baseUrl.hostname = getLanAddress();
+  }
+
+  return baseUrl.toString().replace(/\/$/, "");
+}
+
+function equipmentUrl(req, equipmentId) {
+  return `${resolvePublicBaseUrl(req)}/equipment/${encodeURIComponent(equipmentId)}?scan=1`;
+}
+
+async function appendScanLog(req, equipment) {
+  const entry = {
+    equipmentId: equipment.id,
+    equipmentTitle: equipment.title,
+    viewedAt: new Date().toISOString(),
+    route: req.originalUrl,
+    ip: req.ip,
+    userAgent: req.get("user-agent") || "unknown",
+  };
+
+  await fsp.mkdir(path.dirname(scanLogPath), { recursive: true });
+  await fsp.appendFile(scanLogPath, `${JSON.stringify(entry)}\n`, "utf8");
+}
+
+function sendIndex(res) {
+  res.sendFile(path.join(rootDir, "index.html"));
+}
+
 function assertAdmin(req, res) {
   const password = req.header("x-admin-password");
-  if (!password || password !== ADMIN_PASSWORD) {
-    res.status(401).json({
-      error: "Требуется пароль администратора.",
-    });
+  if (!password || password !== adminPassword) {
+    res.status(401).json({ error: "Требуется пароль администратора." });
     return false;
   }
   return true;
 }
 
-app.get("/api/specialties", async (_req, res) => {
+app.get("/api/specialties", async (_req, res, next) => {
   try {
-    const data = await getSpecialtiesPayload();
-    res.json(data);
+    res.json(await readSpecialties());
   } catch (error) {
-    res.status(500).json({ error: "Не удалось загрузить каталог." });
+    next(error);
   }
 });
 
-app.get("/api/admin/specialties", async (_req, res) => {
+app.get("/api/equipment", async (_req, res, next) => {
   try {
-    const data = await all("SELECT id, code, title FROM specialties ORDER BY sort_order ASC, code ASC");
-    res.json(data);
+    res.json(await allEquipment());
   } catch (error) {
-    res.status(500).json({ error: "Не удалось загрузить специальности." });
+    next(error);
   }
 });
 
-app.post("/api/admin/equipment", async (req, res) => {
+app.get("/api/equipment/:equipmentId", async (req, res, next) => {
+  try {
+    const equipment = await findEquipment(req.params.equipmentId);
+    if (!equipment) {
+      res.status(404).json({ error: "Equipment not found" });
+      return;
+    }
+    res.json(equipment);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/qr/:equipmentId", async (req, res, next) => {
+  try {
+    const equipment = await findEquipment(req.params.equipmentId);
+    if (!equipment) {
+      res.status(404).json({ error: "Equipment not found" });
+      return;
+    }
+
+    const url = equipmentUrl(req, equipment.id);
+    const imageDataUrl = await QRCode.toDataURL(url, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 240,
+    });
+
+    res.json({
+      equipmentId: equipment.id,
+      title: equipment.title,
+      url,
+      imageDataUrl,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/specialties", async (_req, res, next) => {
+  try {
+    const rows = await all("SELECT id, code, title FROM specialties ORDER BY sort_order ASC, code ASC");
+    res.json(rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/equipment", async (req, res, next) => {
   if (!assertAdmin(req, res)) {
     return;
   }
@@ -192,6 +338,7 @@ app.post("/api/admin/equipment", async (req, res) => {
       model,
       environment = "neutral",
       variant = "sensor",
+      hotspots = [],
     } = req.body || {};
 
     if (!specialtyId || !title || !type || !short || !description || !model) {
@@ -199,8 +346,8 @@ app.post("/api/admin/equipment", async (req, res) => {
       return;
     }
 
-    const specialty = await all("SELECT id FROM specialties WHERE id = ?", [specialtyId]);
-    if (specialty.length === 0) {
+    const specialty = await get("SELECT id FROM specialties WHERE id = ?", [specialtyId]);
+    if (!specialty) {
       res.status(400).json({ error: "Выбрана неизвестная специальность." });
       return;
     }
@@ -208,23 +355,15 @@ app.post("/api/admin/equipment", async (req, res) => {
     const baseId = slugify(title) || "equipment";
     let equipmentId = baseId;
     let suffix = 1;
-    while (true) {
-      const existing = await all("SELECT id FROM equipment WHERE id = ?", [equipmentId]);
-      if (existing.length === 0) {
-        break;
-      }
+    while (await get("SELECT id FROM equipment WHERE id = ?", [equipmentId])) {
       suffix += 1;
       equipmentId = `${baseId}-${suffix}`;
     }
 
-    const featureList = Array.isArray(features)
-      ? features.filter((item) => typeof item === "string" && item.trim().length > 0).map((item) => item.trim())
-      : [];
-
     await run(
       `INSERT INTO equipment
-        (id, specialty_id, title, type, short, description, features_json, model, environment, variant)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, specialty_id, title, type, short, description, features_json, model, environment, variant, hotspots_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         equipmentId,
         specialtyId,
@@ -232,34 +371,77 @@ app.post("/api/admin/equipment", async (req, res) => {
         type.trim(),
         short.trim(),
         description.trim(),
-        JSON.stringify(featureList),
+        JSON.stringify(normalizeArray(features)),
         model.trim(),
         String(environment || "neutral").trim(),
         String(variant || "sensor").trim(),
+        JSON.stringify(Array.isArray(hotspots) ? hotspots : []),
       ],
     );
 
-    const modelUrl = `${req.protocol}://${req.get("host")}/#equipment=${equipmentId}`;
     res.status(201).json({
       id: equipmentId,
-      url: modelUrl,
       title: title.trim(),
+      url: equipmentUrl(req, equipmentId),
     });
   } catch (error) {
-    res.status(500).json({ error: "Не удалось сохранить модель." });
+    next(error);
   }
 });
 
-app.use(express.static(__dirname));
+app.get(["/app.js", "/equipment/app.js"], (_req, res) => {
+  res.sendFile(path.join(rootDir, "app.js"));
+});
 
-app.use((_req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+app.get(["/styles.css", "/equipment/styles.css"], (_req, res) => {
+  res.sendFile(path.join(rootDir, "styles.css"));
+});
+
+app.get(["/data/equipment-data.js", "/equipment/data/equipment-data.js"], (_req, res) => {
+  res.sendFile(path.join(rootDir, "data", "equipment-data.js"));
+});
+
+app.use("/vendor", express.static(path.join(rootDir, "vendor"), { index: false }));
+app.use("/models", express.static(path.join(rootDir, "models"), { index: false }));
+app.use(express.static(rootDir, { index: false }));
+
+app.get("/", (_req, res) => {
+  sendIndex(res);
+});
+
+app.get("/equipment/:equipmentId", async (req, res, next) => {
+  try {
+    const equipment = await findEquipment(req.params.equipmentId);
+    if (!equipment) {
+      res.status(404).send("Equipment not found");
+      return;
+    }
+
+    if (req.query.scan === "1") {
+      await appendScanLog(req, equipment);
+    }
+
+    sendIndex(res);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.use((req, res) => {
+  res.status(404).send("Not found");
+});
+
+app.use((error, _req, res, _next) => {
+  console.error(error);
+  res.status(500).json({ error: "Internal server error" });
 });
 
 initDb()
   .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server started on http://localhost:${PORT}`);
+    app.listen(port, host, () => {
+      const lanAddress = getLanAddress();
+      console.log(`Server listening on http://${host}:${port}`);
+      console.log(`LAN URL: http://${lanAddress}:${port}`);
       console.log(`SQLite database: ${dbPath}`);
     });
   })
