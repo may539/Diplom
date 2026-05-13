@@ -393,7 +393,8 @@ model-viewer {
   aspect-ratio: 1;
   transform:
     rotateX(var(--viewer-rx, -22deg))
-    rotateY(var(--viewer-ry, 38deg));
+    rotateY(var(--viewer-ry, 38deg))
+    scale(var(--viewer-scale, 1));
   transform-style: preserve-3d;
   transition: transform 180ms ease;
 }

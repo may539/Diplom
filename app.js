@@ -404,10 +404,12 @@ window.addEventListener("hashchange", () => {
 let isDragging = false;
 let lastPointer = { x: 0, y: 0 };
 let rotation = { x: -22, y: 38 };
+let zoom = 1;
 
-function setViewerRotation() {
+function setViewerTransform() {
   localScene.style.setProperty("--viewer-rx", `${rotation.x}deg`);
   localScene.style.setProperty("--viewer-ry", `${rotation.y}deg`);
+  localScene.style.setProperty("--viewer-scale", zoom.toFixed(3));
 }
 
 localViewer.addEventListener("pointerdown", (event) => {
@@ -426,7 +428,7 @@ localViewer.addEventListener("pointermove", (event) => {
     y: rotation.y + deltaX * 0.45,
   };
   lastPointer = { x: event.clientX, y: event.clientY };
-  setViewerRotation();
+  setViewerTransform();
 });
 
 localViewer.addEventListener("pointerup", (event) => {
@@ -434,7 +436,17 @@ localViewer.addEventListener("pointerup", (event) => {
   localViewer.releasePointerCapture(event.pointerId);
 });
 
-setViewerRotation();
+localViewer.addEventListener(
+  "wheel",
+  (event) => {
+    event.preventDefault();
+    zoom = Math.max(0.7, Math.min(1.8, zoom - event.deltaY * 0.0015));
+    setViewerTransform();
+  },
+  { passive: false },
+);
+
+setViewerTransform();
 initFromHash();
 renderSpecialties();
 render();
