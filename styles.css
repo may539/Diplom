@@ -374,6 +374,33 @@ a {
   user-select: none;
 }
 
+.viewer-shell__model {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.viewer-shell .local-viewer {
+  z-index: 2;
+}
+
+.viewer-shell .hotspot-layer {
+  z-index: 3;
+}
+
+.viewer-shell.is-glb-mode .local-viewer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.viewer-shell.is-glb-mode .hotspot-layer {
+  display: none;
+}
+
+.viewer-shell.is-glb-mode .viewer-shell__model {
+  z-index: 2;
+}
+
 model-viewer {
   width: 100%;
   height: 100%;

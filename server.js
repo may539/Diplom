@@ -291,14 +291,40 @@ app.get("/api/equipment", async (_req, res, next) => {
   }
 });
 
-app.get("/api/equipment/:equipmentId", async (req, res, next) => {
+app.get("/api/equipment/:id", async (req, res, next) => {
   try {
-    const equipment = await findEquipment(req.params.equipmentId);
+    const equipment = await findEquipment(req.params.id);
     if (!equipment) {
       res.status(404).json({ error: "Equipment not found" });
       return;
     }
     res.json(equipment);
+  } catch (error) {
+    next(error);
+  }
+});
+
+const MAX_QR_URL_LENGTH = 2048;
+
+app.post("/api/qr/render", async (req, res, next) => {
+  try {
+    const url = String(req.body?.url || "").trim();
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      res.status(400).json({ error: "URL must start with http:// or https://." });
+      return;
+    }
+    if (url.length > MAX_QR_URL_LENGTH) {
+      res.status(400).json({ error: "URL is too long for a QR code." });
+      return;
+    }
+
+    const imageDataUrl = await QRCode.toDataURL(url, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 240,
+    });
+
+    res.json({ url, imageDataUrl });
   } catch (error) {
     next(error);
   }

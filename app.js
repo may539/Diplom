@@ -21,6 +21,8 @@ const qrImage = document.querySelector("#qr-image");
 const qrCaption = document.querySelector("#qr-caption");
 const qrDirectLink = document.querySelector("#qr-direct-link");
 const qrButtons = document.querySelectorAll("#qr-open, #qr-open-secondary");
+const viewerShell = document.querySelector("#viewer-shell");
+const glbModelViewer = document.querySelector("#equipment-model-viewer");
 const isFileMode = window.location.protocol === "file:";
 
 let specialties = [];
@@ -84,7 +86,66 @@ function readEquipmentIdFromLocation() {
     return decodeURIComponent(pathMatch[1]);
   }
 
+  const idParam = searchParams.get("id");
+  if (idParam && idParam.trim()) {
+    return idParam.trim();
+  }
+
   return hashParams.get("equipment") || searchParams.get("equipment");
+}
+
+function buildEquipmentShareUrl(equipmentId) {
+  const root = new URL("/", window.location.origin);
+  root.searchParams.set("id", equipmentId);
+  return root.toString();
+}
+
+function usesGlbModel(equipment) {
+  return Boolean(equipment.model && /\.glb(\?|$)/i.test(String(equipment.model)));
+}
+
+async function hydrateEquipmentFromApi(equipmentId) {
+  if (isFileMode || !equipmentId) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(`/api/equipment/${encodeURIComponent(equipmentId)}`);
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const row = await response.json();
+    const normalized = {
+      id: row.id,
+      title: row.title,
+      type: row.type,
+      short: row.short,
+      description: row.description,
+      features: Array.isArray(row.features) ? row.features : [],
+      model: row.model,
+      environment: row.environment || "neutral",
+      variant: row.variant || "sensor",
+      hotspots: Array.isArray(row.hotspots) ? row.hotspots : [],
+    };
+
+    const specialty = specialties.find((item) => item.id === row.specialtyId);
+    if (!specialty) {
+      return false;
+    }
+
+    const index = specialty.equipment.findIndex((item) => item.id === normalized.id);
+    if (index >= 0) {
+      specialty.equipment[index] = normalized;
+    } else {
+      specialty.equipment.push(normalized);
+    }
+
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 function setEquipmentRoute(equipmentId, mode = "push") {
@@ -192,7 +253,31 @@ function renderHotspots(hotspots = []) {
 }
 
 function renderActiveEquipment(equipment) {
+  const glb = usesGlbModel(equipment);
+
+  if (viewerShell) {
+    viewerShell.classList.toggle("is-glb-mode", glb);
+  }
+
+  if (glbModelViewer) {
+    if (glb) {
+      glbModelViewer.src = equipment.model;
+      glbModelViewer.alt = equipment.title;
+      glbModelViewer.setAttribute("title", equipment.title);
+      glbModelViewer.removeAttribute("aria-hidden");
+    } else {
+      glbModelViewer.removeAttribute("src");
+      glbModelViewer.setAttribute("aria-hidden", "true");
+    }
+  }
+
   localViewer.setAttribute("aria-label", `Интерактивный 3D макет: ${equipment.title}`);
+  if (glb) {
+    localViewer.setAttribute("aria-hidden", "true");
+  } else {
+    localViewer.removeAttribute("aria-hidden");
+  }
+
   equipmentShape.dataset.variant = equipment.variant;
   equipmentType.textContent = equipment.type;
   equipmentTitle.textContent = equipment.title;
@@ -266,7 +351,12 @@ async function openQrModal() {
   }
 
   try {
-    const response = await fetch(`/api/qr/${encodeURIComponent(equipment.id)}`);
+    const shareUrl = buildEquipmentShareUrl(equipment.id);
+    const response = await fetch("/api/qr/render", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: shareUrl }),
+    });
 
     if (!response.ok) {
       throw new Error("QR API request failed");
@@ -274,7 +364,7 @@ async function openQrModal() {
 
     const qr = await response.json();
     qrImage.src = qr.imageDataUrl;
-    qrCaption.textContent = `${qr.title}: отсканируйте код, чтобы открыть эту 3D-модель.`;
+    qrCaption.textContent = `${equipment.title}: отсканируйте код, чтобы открыть эту 3D-модель.`;
     qrDirectLink.href = qr.url;
     qrDirectLink.textContent = qr.url;
   } catch (error) {
@@ -472,6 +562,10 @@ async function init() {
   try {
     setZoom(1);
     await loadData();
+    const hintedId = readEquipmentIdFromLocation();
+    if (!isFileMode && hintedId) {
+      await hydrateEquipmentFromApi(hintedId);
+    }
     initFromLocation();
     renderSpecialties();
     render();
