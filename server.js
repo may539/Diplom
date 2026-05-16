@@ -205,9 +205,51 @@ async function allEquipment() {
   );
 }
 
+function normalizeEquipmentRow(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    title: row.title,
+    type: row.type,
+    short: row.short,
+    description: row.description,
+    features: JSON.parse(row.features_json || "[]"),
+    model: row.model,
+    environment: row.environment,
+    variant: row.variant,
+    hotspots: JSON.parse(row.hotspots_json || "[]"),
+    specialtyId: row.specialty_id,
+    specialtyCode: row.specialty_code,
+    specialtyTitle: row.specialty_title,
+  };
+}
+
 async function findEquipment(equipmentId) {
-  const equipment = await allEquipment();
-  return equipment.find((item) => item.id === equipmentId) || null;
+  const row = await get(
+    `SELECT
+       equipment.id,
+       equipment.specialty_id,
+       equipment.title,
+       equipment.type,
+       equipment.short,
+       equipment.description,
+       equipment.features_json,
+       equipment.model,
+       equipment.environment,
+       equipment.variant,
+       equipment.hotspots_json,
+       specialties.code AS specialty_code,
+       specialties.title AS specialty_title
+     FROM equipment
+     JOIN specialties ON specialties.id = equipment.specialty_id
+     WHERE equipment.id = ?`,
+    [equipmentId],
+  );
+
+  return normalizeEquipmentRow(row);
 }
 
 function getLanAddress() {
@@ -245,7 +287,11 @@ function resolvePublicBaseUrl(req) {
 }
 
 function equipmentUrl(req, equipmentId) {
-  return `${resolvePublicBaseUrl(req)}/equipment/${encodeURIComponent(equipmentId)}?scan=1`;
+  const url = new URL(resolvePublicBaseUrl(req));
+  url.pathname = "/";
+  url.search = "";
+  url.searchParams.set("id", equipmentId);
+  return url.toString();
 }
 
 async function appendScanLog(req, equipment) {
