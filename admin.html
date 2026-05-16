@@ -10,6 +10,8 @@
     <script defer src="admin.js"></script>
   </head>
   <body>
+    <div id="admin-toast-region" class="admin-toast-region" aria-live="polite"></div>
+
     <header class="hero admin-hero">
       <nav class="topbar" aria-label="Навигация админ-панели">
         <a class="brand" href="/" aria-label="На сайт">
@@ -18,6 +20,7 @@
         </a>
         <div class="topbar__links">
           <a href="/">Каталог</a>
+          <a href="#admin-login">Вход</a>
           <a href="#admin-form">Добавить модель</a>
         </div>
       </nav>
@@ -26,21 +29,32 @@
         <p class="eyebrow">Доступ для администраторов</p>
         <h1>Добавление 3D-моделей в базу SQL</h1>
         <p class="hero__lead">
-          Заполните форму, сохраните новую модель и сразу получите QR-код в модальном окне для печати.
+          Войдите по паролю, затем заполните форму: можно указать URL GLB или загрузить файл — он сохранится на сервере в
+          <code>public/models/</code>.
         </p>
       </div>
     </header>
 
     <main class="section">
+      <article class="admin-card" id="admin-login" aria-labelledby="admin-login-title">
+        <h2 id="admin-login-title">Вход администратора</h2>
+        <p class="admin-card__hint">
+          Пароль по умолчанию: <code>admin123</code>. На сервере сравнивается с bcrypt-хэшем (переменная
+          <code>ADMIN_PASSWORD_HASH</code> для смены пароля).
+        </p>
+        <form id="admin-login-form" class="admin-form">
+          <label>
+            Пароль *
+            <input type="password" name="loginPassword" required autocomplete="current-password" />
+          </label>
+          <button class="button button--primary" type="submit">Войти</button>
+        </form>
+      </article>
+
       <article class="admin-card" id="admin-form" aria-labelledby="admin-form-title">
         <h2 id="admin-form-title">Новая 3D-модель</h2>
-        <p class="admin-card__hint">Пароль по умолчанию: <code>admin123</code> (измените через переменную `ADMIN_PASSWORD`).</p>
-        <form id="equipment-form" class="admin-form">
-          <label>
-            Пароль администратора *
-            <input type="password" name="password" required />
-          </label>
-
+        <p class="admin-card__hint">Нужен активный вход. Укажите URL модели <strong>или</strong> загрузите файл .glb.</p>
+        <form id="equipment-form" class="admin-form" enctype="multipart/form-data" method="post">
           <label>
             Специальность *
             <select name="specialtyId" id="specialty-select" required></select>
@@ -72,8 +86,13 @@
           </label>
 
           <label>
-            Ссылка на GLB-модель *
-            <input type="url" name="model" required />
+            Ссылка на GLB-модель (если не загружаете файл)
+            <input type="url" name="model" placeholder="https://…" />
+          </label>
+
+          <label>
+            Файл .glb (сохранится в <code>public/models/</code>)
+            <input type="file" name="glb" accept=".glb,model/gltf-binary" />
           </label>
 
           <div class="admin-form__row">

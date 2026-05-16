@@ -3,14 +3,22 @@ const fs = require("fs");
 const fsp = require("fs/promises");
 const os = require("os");
 const path = require("path");
+const crypto = require("crypto");
+const bcrypt = require("bcrypt");
+const multer = require("multer");
 const QRCode = require("qrcode");
 const sqlite3 = require("sqlite3").verbose();
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
 const host = process.env.HOST || "0.0.0.0";
-const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
 const rootDir = __dirname;
+const modelsPublicDir = path.join(rootDir, "public", "models");
+/** Bcrypt hash for default password "admin123". Override with ADMIN_PASSWORD_HASH. */
+const DEFAULT_ADMIN_PASSWORD_HASH = "$2b$10$/x0xBA8DU1ssl3WJePlLwuxS0.MEXRx/oLoNB3mT9cGYaZ5q.1JcO";
+const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH || DEFAULT_ADMIN_PASSWORD_HASH;
+const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+const adminSessions = new Map();
 const dataJsonPath = path.join(rootDir, "data", "equipment.json");
 const dbPath = path.join(rootDir, "data", "equipment.sqlite");
 const scanLogPath = path.join(rootDir, "logs", "scan.log");
@@ -68,6 +76,30 @@ function slugify(value) {
     .replace(/-+/g, "-");
 }
 
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      cb(null, modelsPublicDir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase() || ".glb";
+      const safeExt = ext === ".glb" ? ext : ".glb";
+      const baseName = path.basename(file.originalname || "model", path.extname(file.originalname || ""));
+      const base = slugify(baseName) || "model";
+      cb(null, `${base}-${Date.now()}${safeExt}`);
+    },
+  }),
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const name = String(file.originalname || "").toLowerCase();
+    if (!name.endsWith(".glb")) {
+      cb(new Error("Только файлы .glb."));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
 function normalizeArray(value) {
   if (!Array.isArray(value)) {
     return [];
@@ -76,6 +108,7 @@ function normalizeArray(value) {
 }
 
 async function initDb() {
+  await fsp.mkdir(modelsPublicDir, { recursive: true });
   await run("PRAGMA foreign_keys = ON");
   await run(`
     CREATE TABLE IF NOT EXISTS specialties (
@@ -270,10 +303,28 @@ function sendIndex(res) {
   res.sendFile(path.join(rootDir, "index.html"));
 }
 
+function cleanupExpiredAdminSessions() {
+  const now = Date.now();
+  for (const [token, expiresAt] of adminSessions.entries()) {
+    if (expiresAt <= now) {
+      adminSessions.delete(token);
+    }
+  }
+}
+
 function assertAdmin(req, res) {
-  const password = req.header("x-admin-password");
-  if (!password || password !== adminPassword) {
-    res.status(401).json({ error: "Требуется пароль администратора." });
+  cleanupExpiredAdminSessions();
+  const authHeader = req.get("authorization") || "";
+  const bearerMatch = authHeader.match(/^Bearer\s+(\S+)$/i);
+  const token = bearerMatch ? bearerMatch[1] : req.get("x-admin-token");
+  if (!token || !adminSessions.has(token)) {
+    res.status(401).json({ error: "Требуется авторизация администратора." });
+    return false;
+  }
+  const expiresAt = adminSessions.get(token);
+  if (expiresAt <= Date.now()) {
+    adminSessions.delete(token);
+    res.status(401).json({ error: "Сессия истекла. Войдите снова." });
     return false;
   }
   return true;
@@ -334,7 +385,31 @@ app.get("/api/qr/:equipmentId", async (req, res, next) => {
   }
 });
 
-app.get("/api/admin/specialties", async (_req, res, next) => {
+app.post("/api/admin/login", async (req, res, next) => {
+  try {
+    const password = String((req.body && req.body.password) || "");
+    const ok = password.length > 0 && (await bcrypt.compare(password, adminPasswordHash));
+    if (!ok) {
+      res.status(401).json({ error: "Неверный пароль." });
+      return;
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    adminSessions.set(token, Date.now() + ADMIN_SESSION_TTL_MS);
+    res.json({
+      token,
+      expiresIn: Math.floor(ADMIN_SESSION_TTL_MS / 1000),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/admin/specialties", async (req, res, next) => {
+  if (!assertAdmin(req, res)) {
+    return;
+  }
+
   try {
     const rows = await all("SELECT id, code, title FROM specialties ORDER BY sort_order ASC, code ASC");
     res.json(rows);
@@ -343,32 +418,68 @@ app.get("/api/admin/specialties", async (_req, res, next) => {
   }
 });
 
-app.post("/api/admin/equipment", async (req, res, next) => {
+app.post("/api/admin/equipment", (req, res, next) => {
+  upload.single("glb")(req, res, (err) => {
+    if (err) {
+      next(err);
+      return;
+    }
+    next();
+  });
+}, async (req, res, next) => {
   if (!assertAdmin(req, res)) {
+    if (req.file) {
+      await fsp.unlink(req.file.path).catch(() => {});
+    }
     return;
   }
 
   try {
-    const {
-      specialtyId,
-      title,
-      type,
-      short,
-      description,
-      features = [],
-      model,
-      environment = "neutral",
-      variant = "sensor",
-      hotspots = [],
-    } = req.body || {};
+    const specialtyId = String(req.body.specialtyId || "").trim();
+    const title = String(req.body.title || "").trim();
+    const type = String(req.body.type || "").trim();
+    const short = String(req.body.short || "").trim();
+    const description = String(req.body.description || "").trim();
+    const featuresRaw = req.body.features;
+    const features =
+      typeof featuresRaw === "string"
+        ? normalizeArray(featuresRaw.split("\n"))
+        : Array.isArray(featuresRaw)
+          ? normalizeArray(featuresRaw)
+          : [];
+    const environment = String(req.body.environment || "neutral").trim();
+    const variant = String(req.body.variant || "sensor").trim();
+
+    let hotspots = [];
+    if (req.body.hotspots) {
+      try {
+        const parsed = JSON.parse(String(req.body.hotspots));
+        if (Array.isArray(parsed)) {
+          hotspots = parsed;
+        }
+      } catch {
+        hotspots = [];
+      }
+    }
+
+    let model = String(req.body.model || "").trim();
+    if (req.file) {
+      model = `/models/${req.file.filename}`;
+    }
 
     if (!specialtyId || !title || !type || !short || !description || !model) {
+      if (req.file) {
+        await fsp.unlink(req.file.path).catch(() => {});
+      }
       res.status(400).json({ error: "Заполните все обязательные поля модели." });
       return;
     }
 
     const specialty = await get("SELECT id FROM specialties WHERE id = ?", [specialtyId]);
     if (!specialty) {
+      if (req.file) {
+        await fsp.unlink(req.file.path).catch(() => {});
+      }
       res.status(400).json({ error: "Выбрана неизвестная специальность." });
       return;
     }
@@ -388,24 +499,27 @@ app.post("/api/admin/equipment", async (req, res, next) => {
       [
         equipmentId,
         specialtyId,
-        title.trim(),
-        type.trim(),
-        short.trim(),
-        description.trim(),
-        JSON.stringify(normalizeArray(features)),
-        model.trim(),
-        String(environment || "neutral").trim(),
-        String(variant || "sensor").trim(),
-        JSON.stringify(Array.isArray(hotspots) ? hotspots : []),
+        title,
+        type,
+        short,
+        description,
+        JSON.stringify(features),
+        model,
+        environment,
+        variant,
+        JSON.stringify(hotspots),
       ],
     );
 
     res.status(201).json({
       id: equipmentId,
-      title: title.trim(),
+      title,
       url: equipmentUrl(req, equipmentId),
     });
   } catch (error) {
+    if (req.file) {
+      await fsp.unlink(req.file.path).catch(() => {});
+    }
     next(error);
   }
 });
@@ -423,6 +537,7 @@ app.get(["/data/equipment-data.js", "/equipment/data/equipment-data.js"], (_req,
 });
 
 app.use("/vendor", express.static(path.join(rootDir, "vendor"), { index: false }));
+app.use("/models", express.static(modelsPublicDir, { index: false }));
 app.use("/models", express.static(path.join(rootDir, "models"), { index: false }));
 app.use(express.static(rootDir, { index: false }));
 
@@ -464,6 +579,18 @@ app.use((req, res) => {
 });
 
 app.use((error, _req, res, _next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === "LIMIT_FILE_SIZE") {
+      res.status(400).json({ error: "Файл слишком большой." });
+      return;
+    }
+    res.status(400).json({ error: error.message || "Ошибка загрузки файла." });
+    return;
+  }
+  if (error && error.message === "Только файлы .glb.") {
+    res.status(400).json({ error: error.message });
+    return;
+  }
   console.error(error);
   res.status(500).json({ error: "Internal server error" });
 });
