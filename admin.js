@@ -1,4 +1,5 @@
-const form = document.querySelector("#equipment-form");
+const loginForm = document.querySelector("#admin-login-form");
+const equipmentForm = document.querySelector("#equipment-form");
 const specialtySelect = document.querySelector("#specialty-select");
 const statusText = document.querySelector("#form-status");
 const qrModal = document.querySelector("#qr-modal");
@@ -6,6 +7,33 @@ const qrCanvas = document.querySelector("#qr-canvas");
 const qrCaption = document.querySelector("#qr-caption");
 const qrDirectLink = document.querySelector("#qr-direct-link");
 const printQrButton = document.querySelector("#print-qr");
+const toastRegion = document.querySelector("#admin-toast-region");
+
+const ADMIN_TOKEN_KEY = "adminToken";
+
+function getAdminToken() {
+  return sessionStorage.getItem(ADMIN_TOKEN_KEY) || "";
+}
+
+function setAdminToken(token) {
+  if (token) {
+    sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+  } else {
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+  }
+}
+
+function showToast(message, variant = "info") {
+  const toast = document.createElement("div");
+  toast.className = `admin-toast admin-toast--${variant}`;
+  toast.setAttribute("role", "status");
+  toast.textContent = message;
+  toastRegion.appendChild(toast);
+  window.setTimeout(() => {
+    toast.classList.add("admin-toast--out");
+    window.setTimeout(() => toast.remove(), 320);
+  }, 4200);
+}
 
 function setStatus(text, isError = false) {
   statusText.textContent = text;
@@ -50,10 +78,27 @@ function drawQrCode(text) {
   }
 }
 
+function authHeaders() {
+  const token = getAdminToken();
+  const headers = { Accept: "application/json" };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 async function loadSpecialties() {
   specialtySelect.innerHTML = "<option>Загрузка...</option>";
   try {
-    const response = await fetch("/api/admin/specialties", { headers: { Accept: "application/json" } });
+    const response = await fetch("/api/admin/specialties", { headers: authHeaders() });
+    if (response.status === 401) {
+      setAdminToken("");
+      specialtySelect.innerHTML = "";
+      setStatus("Войдите с паролем администратора.", true);
+      showToast("Ошибка авторизации", "error");
+      return;
+    }
+
     if (!response.ok) {
       throw new Error("Не удалось получить специальности.");
     }
@@ -62,11 +107,40 @@ async function loadSpecialties() {
     specialtySelect.innerHTML = specialties
       .map((item) => `<option value="${item.id}">${item.code} — ${item.title}</option>`)
       .join("");
+    setStatus("");
   } catch (error) {
     specialtySelect.innerHTML = "";
     setStatus("Ошибка загрузки специальностей. Проверьте, что сервер запущен.", true);
   }
 }
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(loginForm);
+  const password = String(formData.get("loginPassword") || "");
+
+  try {
+    const response = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ password }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      showToast("Ошибка авторизации", "error");
+      setStatus(data.error || "Неверный пароль.", true);
+      return;
+    }
+
+    setAdminToken(data.token);
+    setStatus("");
+    await loadSpecialties();
+    showToast("Вход выполнен", "success");
+  } catch {
+    showToast("Ошибка авторизации", "error");
+  }
+});
 
 function parseFeatures(value) {
   return value
@@ -75,39 +149,56 @@ function parseFeatures(value) {
     .filter(Boolean);
 }
 
-form.addEventListener("submit", async (event) => {
+equipmentForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const formData = new FormData(form);
-  const password = String(formData.get("password") || "");
+  const token = getAdminToken();
+  if (!token) {
+    showToast("Ошибка авторизации", "error");
+    return;
+  }
 
-  const payload = {
-    specialtyId: String(formData.get("specialtyId") || ""),
-    title: String(formData.get("title") || ""),
-    type: String(formData.get("type") || ""),
-    short: String(formData.get("short") || ""),
-    description: String(formData.get("description") || ""),
-    features: parseFeatures(String(formData.get("features") || "")),
-    model: String(formData.get("model") || ""),
-    variant: String(formData.get("variant") || "sensor"),
-    environment: String(formData.get("environment") || "neutral"),
-  };
+  const fileInput = equipmentForm.querySelector('input[name="glb"]');
+  const modelInput = equipmentForm.querySelector('input[name="model"]');
+  const modelUrl = String(modelInput.value || "").trim();
+  const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+
+  if (!hasFile && !modelUrl) {
+    setStatus("Укажите URL модели или выберите файл .glb.", true);
+    return;
+  }
+
+  const formData = new FormData(equipmentForm);
+  formData.set("features", parseFeatures(String(formData.get("features") || "")).join("\n"));
+
+  if (!hasFile) {
+    formData.delete("glb");
+  }
 
   setStatus("Сохраняем модель...");
 
   try {
     const response = await fetch("/api/admin/equipment", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-password": password,
-      },
-      body: JSON.stringify(payload),
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 401) {
+      setAdminToken("");
+      showToast("Ошибка авторизации", "error");
+      setStatus(data.error || "Сессия истекла. Войдите снова.", true);
+      return;
+    }
+
     if (!response.ok) {
       throw new Error(data.error || "Ошибка добавления модели.");
     }
+
+    if (hasFile) {
+      showToast("Файл загружен", "success");
+    }
+    showToast("Данные сохранены", "success");
 
     drawQrCode(data.url);
     qrCaption.textContent = `${data.title} — QR-код для распечатки и размещения на учебном оборудовании.`;
@@ -115,7 +206,7 @@ form.addEventListener("submit", async (event) => {
     qrDirectLink.textContent = data.url;
     openModal();
     setStatus("Модель добавлена. QR-код готов к печати.");
-    form.reset();
+    equipmentForm.reset();
   } catch (error) {
     setStatus(error.message, true);
   }
@@ -137,4 +228,9 @@ printQrButton.addEventListener("click", () => {
   window.print();
 });
 
-loadSpecialties();
+if (getAdminToken()) {
+  loadSpecialties();
+} else {
+  specialtySelect.innerHTML = "";
+  setStatus("Сначала войдите с паролем администратора.", true);
+}
