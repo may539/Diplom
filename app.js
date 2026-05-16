@@ -31,13 +31,17 @@ let activeEquipmentDetail = null;
 let equipmentDetailError = false;
 let activeHotspotIndex = 0;
 let activeHotspots = [];
-let isWireframe = false;
+let isAutoRotate = true;
 let isDragging = false;
 let lastPointer = { x: 0, y: 0 };
 let rotation = { x: -22, y: 38 };
 let zoom = 1;
+let modelCameraRadius = 165;
 const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.8;
+const MODEL_CAMERA_RADIUS_MIN = 70;
+const MODEL_CAMERA_RADIUS_MAX = 320;
+const MODEL_CAMERA_RADIUS_DEFAULT = 165;
 
 function escapeHtml(value) {
   return String(value)
@@ -140,14 +144,27 @@ function setViewerTransform() {
 function syncZoomControls() {
   if (!zoomResetButton) return;
   const glbMode = Boolean(equipmentModelViewer?.src);
+  if (glbMode) {
+    zoomResetButton.textContent = `${Math.round((MODEL_CAMERA_RADIUS_DEFAULT / modelCameraRadius) * 100)}%`;
+    zoomOutButton.disabled = modelCameraRadius >= MODEL_CAMERA_RADIUS_MAX - 0.001;
+    zoomInButton.disabled = modelCameraRadius <= MODEL_CAMERA_RADIUS_MIN + 0.001;
+    return;
+  }
+
   zoomResetButton.textContent = `${Math.round(zoom * 100)}%`;
-  zoomOutButton.disabled = glbMode || zoom <= ZOOM_MIN + 0.001;
-  zoomInButton.disabled = glbMode || zoom >= ZOOM_MAX - 0.001;
+  zoomOutButton.disabled = zoom <= ZOOM_MIN + 0.001;
+  zoomInButton.disabled = zoom >= ZOOM_MAX - 0.001;
 }
 
 function setZoom(nextZoom) {
   zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, nextZoom));
   setViewerTransform();
+  syncZoomControls();
+}
+
+function setModelCameraRadius(nextRadius) {
+  modelCameraRadius = Math.max(MODEL_CAMERA_RADIUS_MIN, Math.min(MODEL_CAMERA_RADIUS_MAX, nextRadius));
+  equipmentModelViewer?.setAttribute("camera-orbit", `auto auto ${modelCameraRadius.toFixed(1)}%`);
   syncZoomControls();
 }
 
@@ -315,6 +332,8 @@ function renderActiveEquipment(equipment) {
   if (equipmentModelViewer) {
     equipmentModelViewer.setAttribute("src", equipment.model);
     equipmentModelViewer.setAttribute("alt", equipment.title);
+    equipmentModelViewer.toggleAttribute("auto-rotate", isAutoRotate);
+    setModelCameraRadius(modelCameraRadius);
   }
 
   renderHotspots(equipment.hotspots || []);
@@ -330,16 +349,12 @@ function syncActiveStates() {
   });
 }
 
-function syncWireframe() {
-  const glbMode = Boolean(equipmentModelViewer?.src);
-  wireframeToggle.disabled = glbMode;
-  if (glbMode) {
-    return;
-  }
-
-  localViewer.classList.toggle("is-wireframe", isWireframe);
-  wireframeToggle.setAttribute("aria-pressed", String(isWireframe));
-  wireframeToggle.classList.toggle("is-active", isWireframe);
+function syncAutoRotate() {
+  equipmentModelViewer?.toggleAttribute("auto-rotate", isAutoRotate);
+  wireframeToggle.disabled = false;
+  wireframeToggle.setAttribute("aria-pressed", String(isAutoRotate));
+  wireframeToggle.classList.toggle("is-active", isAutoRotate);
+  wireframeToggle.textContent = isAutoRotate ? "Автопрокрутка: вкл" : "Автопрокрутка: выкл";
 }
 
 function renderEquipmentNotFound() {
@@ -382,7 +397,7 @@ function render() {
     renderEquipmentList(specialty);
     renderEquipmentNotFound();
     syncActiveStates();
-    syncWireframe();
+    syncAutoRotate();
     syncZoomControls();
     return;
   }
@@ -397,7 +412,7 @@ function render() {
   renderEquipmentList(specialty);
   renderActiveEquipment(equipment);
   syncActiveStates();
-  syncWireframe();
+  syncAutoRotate();
   syncZoomControls();
 }
 
@@ -603,8 +618,8 @@ hotspotLayer.addEventListener("pointerdown", (event) => {
 });
 
 wireframeToggle.addEventListener("click", () => {
-  isWireframe = !isWireframe;
-  syncWireframe();
+  isAutoRotate = !isAutoRotate;
+  syncAutoRotate();
 });
 
 qrButtons.forEach((button) => button.addEventListener("click", openQrModal));
@@ -701,14 +716,29 @@ localViewer.addEventListener(
 );
 
 zoomOutButton.addEventListener("click", () => {
+  if (equipmentModelViewer?.src) {
+    setModelCameraRadius(modelCameraRadius + 25);
+    return;
+  }
+
   setZoom(zoom - 0.12);
 });
 
 zoomInButton.addEventListener("click", () => {
+  if (equipmentModelViewer?.src) {
+    setModelCameraRadius(modelCameraRadius - 20);
+    return;
+  }
+
   setZoom(zoom + 0.12);
 });
 
 zoomResetButton.addEventListener("click", () => {
+  if (equipmentModelViewer?.src) {
+    setModelCameraRadius(MODEL_CAMERA_RADIUS_DEFAULT);
+    return;
+  }
+
   setZoom(1);
 });
 

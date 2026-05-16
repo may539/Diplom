@@ -107,6 +107,10 @@
                   exposure="1"
                   loading="eager"
                   reveal="auto"
+                  camera-orbit="auto auto 165%"
+                  min-camera-orbit="auto auto 70%"
+                  max-camera-orbit="auto auto 320%"
+                  field-of-view="35deg"
                 ></model-viewer>
                 <div class="local-viewer__scene" id="local-scene" hidden>
                   <div class="scene-floor"></div>
@@ -149,8 +153,8 @@
               </div>
               <ul class="feature-list" id="equipment-features"></ul>
               <div class="viewer-info__actions">
-                <button class="button button--ghost" id="wireframe-toggle" type="button" aria-pressed="false">
-                  Сетка
+                <button class="button button--ghost" id="wireframe-toggle" type="button" aria-pressed="true">
+                  Автопрокрутка: вкл
                 </button>
                 <button class="button button--primary" id="qr-open" type="button">
                   Показать QR-код
