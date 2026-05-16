@@ -35,7 +35,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "https://unpkg.com"],
+        scriptSrc: ["'self'", "https://unpkg.com", "https://ajax.googleapis.com", "https://cdn.jsdelivr.net"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: ["'self'", "https:"],
