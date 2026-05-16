@@ -245,7 +245,11 @@ function resolvePublicBaseUrl(req) {
 }
 
 function equipmentUrl(req, equipmentId) {
-  return `${resolvePublicBaseUrl(req)}/equipment/${encodeURIComponent(equipmentId)}?scan=1`;
+  const base = resolvePublicBaseUrl(req);
+  const url = new URL(base.endsWith("/") ? base : `${base}/`);
+  url.searchParams.set("id", equipmentId);
+  url.searchParams.set("scan", "1");
+  return url.href;
 }
 
 async function appendScanLog(req, equipment) {
@@ -291,9 +295,9 @@ app.get("/api/equipment", async (_req, res, next) => {
   }
 });
 
-app.get("/api/equipment/:equipmentId", async (req, res, next) => {
+app.get("/api/equipment/:id", async (req, res, next) => {
   try {
-    const equipment = await findEquipment(req.params.equipmentId);
+    const equipment = await findEquipment(req.params.id);
     if (!equipment) {
       res.status(404).json({ error: "Equipment not found" });
       return;
@@ -422,8 +426,19 @@ app.use("/vendor", express.static(path.join(rootDir, "vendor"), { index: false }
 app.use("/models", express.static(path.join(rootDir, "models"), { index: false }));
 app.use(express.static(rootDir, { index: false }));
 
-app.get("/", (_req, res) => {
-  sendIndex(res);
+app.get("/", async (req, res, next) => {
+  try {
+    const equipmentId = req.query.id;
+    if (equipmentId && req.query.scan === "1") {
+      const equipment = await findEquipment(String(equipmentId));
+      if (equipment) {
+        await appendScanLog(req, equipment);
+      }
+    }
+    sendIndex(res);
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/equipment/:equipmentId", async (req, res, next) => {

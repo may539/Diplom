@@ -9,6 +9,7 @@ const equipmentFeatures = document.querySelector("#equipment-features");
 const modelLink = document.querySelector("#model-link");
 const localViewer = document.querySelector("#local-viewer");
 const localScene = document.querySelector("#local-scene");
+const equipmentModelViewer = document.querySelector("#equipment-model-viewer");
 const equipmentShape = document.querySelector("#equipment-shape");
 const hotspotLayer = document.querySelector("#hotspot-layer");
 const annotationPanel = document.querySelector("#annotation-panel");
@@ -26,6 +27,8 @@ const isFileMode = window.location.protocol === "file:";
 let specialties = [];
 let activeSpecialtyId = "";
 let activeEquipmentId = "";
+let activeEquipmentDetail = null;
+let equipmentDetailError = false;
 let activeHotspotIndex = 0;
 let isWireframe = false;
 let isDragging = false;
@@ -57,12 +60,21 @@ function findSpecialty(id) {
   return specialties.find((specialty) => specialty.id === id) || specialties[0];
 }
 
-function findEquipment(id) {
+function findEquipmentStrict(id) {
   for (const specialty of specialties) {
     const equipment = specialty.equipment.find((item) => item.id === id);
     if (equipment) {
       return { specialty, equipment };
     }
+  }
+
+  return null;
+}
+
+function findEquipment(id) {
+  const found = findEquipmentStrict(id);
+  if (found) {
+    return found;
   }
 
   return {
@@ -71,8 +83,11 @@ function findEquipment(id) {
   };
 }
 
-function equipmentPath(equipmentId) {
-  return `/equipment/${encodeURIComponent(equipmentId)}`;
+function buildEquipmentQrUrl(equipmentId) {
+  const url = new URL("/", window.location.origin);
+  url.searchParams.set("id", equipmentId);
+  url.searchParams.set("scan", "1");
+  return url.href;
 }
 
 function readEquipmentIdFromLocation() {
@@ -82,6 +97,11 @@ function readEquipmentIdFromLocation() {
 
   if (pathMatch) {
     return decodeURIComponent(pathMatch[1]);
+  }
+
+  const idParam = searchParams.get("id");
+  if (idParam) {
+    return idParam;
   }
 
   return hashParams.get("equipment") || searchParams.get("equipment");
@@ -99,13 +119,15 @@ function setEquipmentRoute(equipmentId, mode = "push") {
     return;
   }
 
-  const nextPath = equipmentPath(equipmentId);
+  const nextUrl = new URL("/", window.location.origin);
+  nextUrl.searchParams.set("id", equipmentId);
+  const next = `${nextUrl.pathname}${nextUrl.search}`;
 
-  if (window.location.pathname === nextPath && !window.location.search && !window.location.hash) {
+  if (window.location.pathname + window.location.search === next) {
     return;
   }
 
-  history[mode === "replace" ? "replaceState" : "pushState"](null, "", nextPath);
+  history[mode === "replace" ? "replaceState" : "pushState"](null, "", next);
 }
 
 function setViewerTransform() {
@@ -116,9 +138,10 @@ function setViewerTransform() {
 
 function syncZoomControls() {
   if (!zoomResetButton) return;
+  const glbMode = Boolean(equipmentModelViewer?.src);
   zoomResetButton.textContent = `${Math.round(zoom * 100)}%`;
-  zoomOutButton.disabled = zoom <= ZOOM_MIN + 0.001;
-  zoomInButton.disabled = zoom >= ZOOM_MAX - 0.001;
+  zoomOutButton.disabled = glbMode || zoom <= ZOOM_MIN + 0.001;
+  zoomInButton.disabled = glbMode || zoom >= ZOOM_MAX - 0.001;
 }
 
 function setZoom(nextZoom) {
@@ -192,14 +215,21 @@ function renderHotspots(hotspots = []) {
 }
 
 function renderActiveEquipment(equipment) {
-  localViewer.setAttribute("aria-label", `Интерактивный 3D макет: ${equipment.title}`);
-  equipmentShape.dataset.variant = equipment.variant;
+  localViewer.setAttribute("aria-label", `Интерактивная 3D модель: ${equipment.title}`);
+  equipmentShape.dataset.variant = equipment.variant || "sensor";
   equipmentType.textContent = equipment.type;
   equipmentTitle.textContent = equipment.title;
   equipmentDescription.textContent = equipment.description;
   modelLink.href = equipment.model;
-  equipmentFeatures.innerHTML = equipment.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("");
-  renderHotspots(equipment.hotspots);
+  modelLink.textContent = "Открыть GLB-источник";
+  equipmentFeatures.innerHTML = (equipment.features || []).map((feature) => `<li>${escapeHtml(feature)}</li>`).join("");
+
+  if (equipmentModelViewer) {
+    equipmentModelViewer.src = equipment.model;
+    equipmentModelViewer.alt = equipment.title;
+  }
+
+  renderHotspots(equipment.hotspots || []);
 }
 
 function syncActiveStates() {
@@ -213,21 +243,72 @@ function syncActiveStates() {
 }
 
 function syncWireframe() {
+  const glbMode = Boolean(equipmentModelViewer?.src);
+  wireframeToggle.disabled = glbMode;
+  if (glbMode) {
+    return;
+  }
+
   localViewer.classList.toggle("is-wireframe", isWireframe);
   wireframeToggle.setAttribute("aria-pressed", String(isWireframe));
   wireframeToggle.classList.toggle("is-active", isWireframe);
 }
 
-function render() {
-  const specialty = findSpecialty(activeSpecialtyId);
-  const equipment = specialty.equipment.find((item) => item.id === activeEquipmentId) || specialty.equipment[0];
+function renderEquipmentNotFound() {
+  equipmentType.textContent = "";
+  equipmentTitle.textContent = "Объект не найден";
+  equipmentDescription.textContent =
+    "Проверьте параметр id в адресе страницы или выберите модель в каталоге слева.";
+  equipmentFeatures.innerHTML = "";
+  modelLink.href = "#";
+  modelLink.textContent = "Открыть GLB-источник";
+  annotationPanel.innerHTML = "<span>Нет данных для отображения.</span>";
+  hotspotLayer.innerHTML = "";
 
-  activeSpecialtyId = specialty.id;
-  activeEquipmentId = equipment.id;
+  if (equipmentModelViewer) {
+    equipmentModelViewer.removeAttribute("src");
+    equipmentModelViewer.alt = "";
+  }
+
+  localViewer.setAttribute("aria-label", "3D модель недоступна");
+  syncZoomControls();
+}
+
+function render() {
+  const strict = findEquipmentStrict(activeEquipmentId);
+  if (strict) {
+    activeSpecialtyId = strict.specialty.id;
+  }
+
+  const specialty = findSpecialty(activeSpecialtyId);
+  const catalogEquipment = specialty.equipment.find((item) => item.id === activeEquipmentId);
+
+  let equipment =
+    activeEquipmentDetail && activeEquipmentDetail.id === activeEquipmentId
+      ? activeEquipmentDetail
+      : catalogEquipment;
+
+  if (!equipment && equipmentDetailError) {
+    renderEquipmentList(specialty);
+    renderEquipmentNotFound();
+    syncActiveStates();
+    syncWireframe();
+    syncZoomControls();
+    return;
+  }
+
+  if (!equipment) {
+    equipment = specialty.equipment[0];
+    activeEquipmentId = equipment.id;
+    activeEquipmentDetail = null;
+    equipmentDetailError = false;
+  }
+
   renderEquipmentList(specialty);
   renderActiveEquipment(equipment);
   syncActiveStates();
   syncWireframe();
+  syncZoomControls();
 }
 
 function initFromLocation() {
@@ -236,18 +317,65 @@ function initFromLocation() {
   if (!equipmentId) {
     activeSpecialtyId = specialties[0].id;
     activeEquipmentId = specialties[0].equipment[0].id;
+    activeEquipmentDetail = null;
+    equipmentDetailError = false;
     return;
   }
 
-  const { specialty, equipment } = findEquipment(equipmentId);
-  activeSpecialtyId = specialty.id;
-  activeEquipmentId = equipment.id;
+  const found = findEquipmentStrict(equipmentId);
+  if (found) {
+    activeSpecialtyId = found.specialty.id;
+    activeEquipmentId = found.equipment.id;
+    activeEquipmentDetail = null;
+    equipmentDetailError = false;
+    return;
+  }
+
+  activeSpecialtyId = specialties[0].id;
+  activeEquipmentId = equipmentId;
+  activeEquipmentDetail = null;
+  equipmentDetailError = false;
+}
+
+async function refreshActiveEquipmentFromApi() {
+  const id = activeEquipmentId;
+  equipmentDetailError = false;
+
+  if (isFileMode) {
+    const { equipment } = findEquipment(id);
+    activeEquipmentDetail = { ...equipment };
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/equipment/${encodeURIComponent(id)}`);
+
+    if (!response.ok) {
+      activeEquipmentDetail = null;
+      equipmentDetailError = true;
+      return;
+    }
+
+    const data = await response.json();
+    if (id !== activeEquipmentId) {
+      return;
+    }
+
+    activeEquipmentDetail = data;
+    equipmentDetailError = false;
+  } catch {
+    activeEquipmentDetail = null;
+    equipmentDetailError = true;
+  }
 }
 
 async function openQrModal() {
-  const { equipment } = findEquipment(activeEquipmentId);
+  const equipment =
+    activeEquipmentDetail && activeEquipmentDetail.id === activeEquipmentId
+      ? activeEquipmentDetail
+      : findEquipment(activeEquipmentId).equipment;
 
-  qrCaption.textContent = "Генерация QR-кода на сервере...";
+  qrCaption.textContent = "Генерация QR-кода...";
   qrImage.hidden = false;
   qrImage.removeAttribute("src");
   qrDirectLink.removeAttribute("href");
@@ -265,20 +393,27 @@ async function openQrModal() {
     return;
   }
 
+  const url = buildEquipmentQrUrl(equipment.id);
+  const QRCodeGlobal = window.QRCode;
+
+  if (!QRCodeGlobal || typeof QRCodeGlobal.toDataURL !== "function") {
+    qrCaption.textContent = "Не удалось загрузить библиотеку QR-кода.";
+    return;
+  }
+
   try {
-    const response = await fetch(`/api/qr/${encodeURIComponent(equipment.id)}`);
+    const imageDataUrl = await QRCodeGlobal.toDataURL(url, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 240,
+    });
 
-    if (!response.ok) {
-      throw new Error("QR API request failed");
-    }
-
-    const qr = await response.json();
-    qrImage.src = qr.imageDataUrl;
-    qrCaption.textContent = `${qr.title}: отсканируйте код, чтобы открыть эту 3D-модель.`;
-    qrDirectLink.href = qr.url;
-    qrDirectLink.textContent = qr.url;
+    qrImage.src = imageDataUrl;
+    qrCaption.textContent = `${equipment.title}: отсканируйте код, чтобы открыть эту 3D-модель.`;
+    qrDirectLink.href = url;
+    qrDirectLink.textContent = url;
   } catch (error) {
-    qrCaption.textContent = "Не удалось получить QR-код с сервера.";
+    qrCaption.textContent = "Не удалось сформировать QR-код.";
   }
 }
 
@@ -335,7 +470,7 @@ async function loadData() {
   }
 }
 
-specialtyGrid.addEventListener("click", (event) => {
+specialtyGrid.addEventListener("click", async (event) => {
   const card = event.target.closest("[data-specialty]");
   if (!card) return;
 
@@ -343,11 +478,12 @@ specialtyGrid.addEventListener("click", (event) => {
   activeSpecialtyId = specialty.id;
   activeEquipmentId = specialty.equipment[0].id;
   setEquipmentRoute(activeEquipmentId);
+  await refreshActiveEquipmentFromApi();
   render();
   document.querySelector("#viewer").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
-equipmentList.addEventListener("click", (event) => {
+equipmentList.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-equipment]");
   if (!button) return;
 
@@ -355,6 +491,7 @@ equipmentList.addEventListener("click", (event) => {
   activeSpecialtyId = specialty.id;
   activeEquipmentId = equipment.id;
   setEquipmentRoute(equipment.id);
+  await refreshActiveEquipmentFromApi();
   render();
 });
 
@@ -394,13 +531,16 @@ window.addEventListener("keydown", (event) => {
 
 let syncScheduled = false;
 
-function syncFromLocation() {
+async function syncFromLocation() {
   initFromLocation();
 
   if (window.location.hash.replace("#", "").startsWith("equipment=")) {
     setEquipmentRoute(activeEquipmentId, "replace");
+  } else if (!isFileMode && /^\/equipment\/[^/]+\/?$/.test(window.location.pathname)) {
+    setEquipmentRoute(activeEquipmentId, "replace");
   }
 
+  await refreshActiveEquipmentFromApi();
   render();
 }
 
@@ -412,7 +552,7 @@ function scheduleSyncFromLocation() {
   syncScheduled = true;
   window.requestAnimationFrame(() => {
     syncScheduled = false;
-    syncFromLocation();
+    void syncFromLocation();
   });
 }
 
@@ -420,6 +560,10 @@ window.addEventListener("hashchange", scheduleSyncFromLocation);
 window.addEventListener("popstate", scheduleSyncFromLocation);
 
 localViewer.addEventListener("pointerdown", (event) => {
+  if (event.target.closest("model-viewer")) {
+    return;
+  }
+
   if (event.target.closest("[data-hotspot-index], [data-viewer-control]")) {
     return;
   }
@@ -431,6 +575,10 @@ localViewer.addEventListener("pointerdown", (event) => {
 
 localViewer.addEventListener("pointermove", (event) => {
   if (!isDragging) return;
+
+  if (event.target.closest("model-viewer")) {
+    return;
+  }
 
   const deltaX = event.clientX - lastPointer.x;
   const deltaY = event.clientY - lastPointer.y;
@@ -450,6 +598,10 @@ localViewer.addEventListener("pointerup", (event) => {
 localViewer.addEventListener(
   "wheel",
   (event) => {
+    if (event.target.closest("model-viewer")) {
+      return;
+    }
+
     event.preventDefault();
     setZoom(zoom - event.deltaY * 0.0015);
   },
@@ -474,6 +626,7 @@ async function init() {
     await loadData();
     initFromLocation();
     renderSpecialties();
+    await refreshActiveEquipmentFromApi();
     render();
     applyInitialViewOptions();
   } catch (error) {

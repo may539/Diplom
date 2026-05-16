@@ -9,6 +9,8 @@
     />
     <title>3D визуализация учебного оборудования</title>
     <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
     <script src="data/equipment-data.js"></script>
     <script defer src="app.js"></script>
   </head>
@@ -96,7 +98,17 @@
           <article class="viewer-card">
             <div class="viewer-shell">
               <div class="local-viewer" id="local-viewer" role="img" aria-label="Интерактивный 3D макет оборудования">
-                <div class="local-viewer__scene" id="local-scene">
+                <model-viewer
+                  id="equipment-model-viewer"
+                  class="equipment-model-viewer"
+                  camera-controls
+                  touch-action="pan-y"
+                  shadow-intensity="1"
+                  exposure="1"
+                  loading="eager"
+                  reveal="auto"
+                ></model-viewer>
+                <div class="local-viewer__scene" id="local-scene" hidden>
                   <div class="scene-floor"></div>
                   <div class="equipment-3d" id="equipment-shape" data-variant="sensor" aria-hidden="true">
                     <span class="face face--front"></span>
@@ -111,7 +123,7 @@
                   </div>
                 </div>
                 <div class="hotspot-layer" id="hotspot-layer" aria-label="Аннотации модели"></div>
-                <div class="local-viewer__hint">Потяните мышью для вращения, колесо — для масштаба</div>
+                <div class="local-viewer__hint">Вращайте модель мышью или касанием, колёсико — масштаб</div>
                 <div class="viewer-zoom-controls" data-viewer-control aria-label="Управление масштабом модели">
                   <button class="zoom-control" id="zoom-out" data-viewer-control type="button" aria-label="Отдалить модель">−</button>
                   <button
