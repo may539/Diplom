@@ -10,6 +10,8 @@
     <title>3D визуализация учебного оборудования</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="data/equipment-data.js"></script>
+    <script src="vendor/qrcode.js"></script>
+    <script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
     <script defer src="app.js"></script>
   </head>
   <body>
@@ -96,6 +98,20 @@
           <article class="viewer-card">
             <div class="viewer-shell">
               <div class="local-viewer" id="local-viewer" role="img" aria-label="Интерактивный 3D макет оборудования">
+                <model-viewer
+                  id="model-viewer"
+                  class="model-viewer"
+                  alt="Интерактивная 3D-модель учебного оборудования"
+                  camera-controls
+                  touch-action="pan-y"
+                  shadow-intensity="1"
+                  exposure="1"
+                  auto-rotate
+                  auto-rotate-delay="2500"
+                  reveal="auto"
+                  loading="eager"
+                  hidden
+                ></model-viewer>
                 <div class="local-viewer__scene" id="local-scene">
                   <div class="scene-floor"></div>
                   <div class="equipment-3d" id="equipment-shape" data-variant="sensor" aria-hidden="true">

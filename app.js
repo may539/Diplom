@@ -21,6 +21,7 @@ const qrImage = document.querySelector("#qr-image");
 const qrCaption = document.querySelector("#qr-caption");
 const qrDirectLink = document.querySelector("#qr-direct-link");
 const qrButtons = document.querySelectorAll("#qr-open, #qr-open-secondary");
+const modelViewerEl = document.querySelector("#model-viewer");
 const isFileMode = window.location.protocol === "file:";
 
 let specialties = [];
@@ -84,7 +85,12 @@ function readEquipmentIdFromLocation() {
     return decodeURIComponent(pathMatch[1]);
   }
 
-  return hashParams.get("equipment") || searchParams.get("equipment");
+  return (
+    searchParams.get("id") ||
+    searchParams.get("equipment") ||
+    hashParams.get("id") ||
+    hashParams.get("equipment")
+  );
 }
 
 function setEquipmentRoute(equipmentId, mode = "push") {
@@ -191,6 +197,28 @@ function renderHotspots(hotspots = []) {
   renderAnnotation(hotspots, 0);
 }
 
+function applyModelViewerSource(equipment) {
+  if (!modelViewerEl) {
+    return;
+  }
+
+  const modelSrc = equipment && typeof equipment.model === "string" ? equipment.model : "";
+
+  if (!modelSrc) {
+    modelViewerEl.removeAttribute("src");
+    modelViewerEl.hidden = true;
+    localViewer.classList.remove("has-model");
+    return;
+  }
+
+  if (modelViewerEl.getAttribute("src") !== modelSrc) {
+    modelViewerEl.setAttribute("src", modelSrc);
+  }
+  modelViewerEl.setAttribute("alt", `Интерактивная 3D-модель: ${equipment.title}`);
+  modelViewerEl.hidden = false;
+  localViewer.classList.add("has-model");
+}
+
 function renderActiveEquipment(equipment) {
   localViewer.setAttribute("aria-label", `Интерактивный 3D макет: ${equipment.title}`);
   equipmentShape.dataset.variant = equipment.variant;
@@ -200,6 +228,7 @@ function renderActiveEquipment(equipment) {
   modelLink.href = equipment.model;
   equipmentFeatures.innerHTML = equipment.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("");
   renderHotspots(equipment.hotspots);
+  applyModelViewerSource(equipment);
 }
 
 function syncActiveStates() {
@@ -244,14 +273,82 @@ function initFromLocation() {
   activeEquipmentId = equipment.id;
 }
 
+async function fetchEquipmentFromApi(equipmentId) {
+  if (!equipmentId || isFileMode) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`/api/equipment/${encodeURIComponent(equipmentId)}`);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    return null;
+  }
+}
+
+function mergeRemoteEquipment(remote) {
+  if (!remote || !remote.id) {
+    return;
+  }
+
+  const target = findEquipment(remote.id).equipment;
+  if (!target || target.id !== remote.id) {
+    return;
+  }
+
+  const fields = ["title", "type", "short", "description", "model", "environment", "variant"];
+  for (const field of fields) {
+    if (typeof remote[field] === "string" && remote[field]) {
+      target[field] = remote[field];
+    }
+  }
+  if (Array.isArray(remote.features)) {
+    target.features = remote.features;
+  }
+  if (Array.isArray(remote.hotspots)) {
+    target.hotspots = remote.hotspots;
+  }
+}
+
+function buildEquipmentShareUrl(equipmentId) {
+  const origin = window.location.origin && window.location.origin !== "null"
+    ? window.location.origin
+    : `${window.location.protocol}//${window.location.host}`;
+  return `${origin}/?id=${encodeURIComponent(equipmentId)}`;
+}
+
+function generateQrDataUrl(text) {
+  if (typeof window.qrcode !== "function") {
+    return null;
+  }
+
+  try {
+    if (window.qrcode.stringToBytesFuncs && window.qrcode.stringToBytesFuncs["UTF-8"]) {
+      window.qrcode.stringToBytes = window.qrcode.stringToBytesFuncs["UTF-8"];
+    }
+    const qr = window.qrcode(0, "M");
+    qr.addData(text);
+    qr.make();
+    return qr.createDataURL(6, 4);
+  } catch (error) {
+    return null;
+  }
+}
+
 async function openQrModal() {
   const { equipment } = findEquipment(activeEquipmentId);
+  const shareUrl = buildEquipmentShareUrl(equipment.id);
 
-  qrCaption.textContent = "Генерация QR-кода на сервере...";
+  qrCaption.textContent = "Генерация QR-кода…";
   qrImage.hidden = false;
   qrImage.removeAttribute("src");
-  qrDirectLink.removeAttribute("href");
-  qrDirectLink.textContent = "";
+  qrDirectLink.href = shareUrl;
+  qrDirectLink.textContent = shareUrl;
   qrModal.classList.add("is-open");
   qrModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
@@ -259,9 +356,16 @@ async function openQrModal() {
   if (isFileMode) {
     qrImage.hidden = true;
     qrCaption.textContent =
-      "Для корректного QR-кода запустите сервер командой npm start и откройте http://localhost:8080.";
+      "Для корректного QR-кода запустите сервер командой npm start и откройте сайт по сетевому адресу.";
     qrDirectLink.href = "http://localhost:8080";
     qrDirectLink.textContent = "Открыть серверную версию";
+    return;
+  }
+
+  const localQr = generateQrDataUrl(shareUrl);
+  if (localQr) {
+    qrImage.src = localQr;
+    qrCaption.textContent = `${equipment.title}: отсканируйте код, чтобы открыть эту 3D-модель.`;
     return;
   }
 
@@ -275,10 +379,10 @@ async function openQrModal() {
     const qr = await response.json();
     qrImage.src = qr.imageDataUrl;
     qrCaption.textContent = `${qr.title}: отсканируйте код, чтобы открыть эту 3D-модель.`;
-    qrDirectLink.href = qr.url;
-    qrDirectLink.textContent = qr.url;
+    qrDirectLink.href = shareUrl;
+    qrDirectLink.textContent = shareUrl;
   } catch (error) {
-    qrCaption.textContent = "Не удалось получить QR-код с сервера.";
+    qrCaption.textContent = "Не удалось сгенерировать QR-код.";
   }
 }
 
@@ -476,6 +580,17 @@ async function init() {
     renderSpecialties();
     render();
     applyInitialViewOptions();
+
+    const requestedId = readEquipmentIdFromLocation();
+    if (requestedId) {
+      const remote = await fetchEquipmentFromApi(requestedId);
+      if (remote) {
+        mergeRemoteEquipment(remote);
+        if (activeEquipmentId === remote.id) {
+          render();
+        }
+      }
+    }
   } catch (error) {
     specialtyGrid.innerHTML = '<p class="error-state">Не удалось загрузить каталог оборудования.</p>';
     equipmentList.innerHTML = '<p class="error-state">Проверьте запуск Node.js сервера.</p>';
