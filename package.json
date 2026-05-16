@@ -21,7 +21,10 @@
   },
   "homepage": "https://github.com/may539/Diplom#readme",
   "dependencies": {
+    "compression": "^1.8.1",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.1.0",
     "qrcode": "^1.5.4",
     "sqlite3": "^6.0.1"
   }

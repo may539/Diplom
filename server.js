@@ -1,6 +1,9 @@
 const express = require("express");
+const compression = require("compression");
+const rateLimit = require("express-rate-limit");
 const fs = require("fs");
 const fsp = require("fs/promises");
+const helmet = require("helmet");
 const os = require("os");
 const path = require("path");
 const QRCode = require("qrcode");
@@ -15,8 +18,49 @@ const dataJsonPath = path.join(rootDir, "data", "equipment.json");
 const dbPath = path.join(rootDir, "data", "equipment.sqlite");
 const scanLogPath = path.join(rootDir, "logs", "scan.log");
 const db = new sqlite3.Database(dbPath);
+const equipmentIdPattern = /^[a-zA-Z0-9-]+$/;
+const sevenDaysInSeconds = 7 * 24 * 60 * 60;
+const modelStaticOptions = {
+  index: false,
+  maxAge: "7d",
+  immutable: true,
+  setHeaders(res) {
+    res.setHeader("Cache-Control", `public, max-age=${sevenDaysInSeconds}, immutable`);
+  },
+};
 
-app.set("trust proxy", true);
+app.set("trust proxy", 1);
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "https://unpkg.com"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'", "https:"],
+        modelSrc: ["'self'", "https:", "data:", "blob:"],
+        workerSrc: ["'self'", "blob:"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'self'"],
+        "upgrade-insecure-requests": null,
+      },
+    },
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 100,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { error: "Слишком много запросов. Повторите попытку позже." },
+  }),
+);
+app.use(compression());
 app.use(express.json({ limit: "1mb" }));
 
 function run(sql, params = []) {
@@ -63,7 +107,7 @@ function slugify(value) {
   return String(value)
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9а-яё]+/gi, "-")
+    .replace(/[^a-z0-9]+/gi, "-")
     .replace(/^-+|-+$/g, "")
     .replace(/-+/g, "-");
 }
@@ -100,6 +144,19 @@ function normalizeEquipmentRow(row) {
     specialtyCode: row.specialty_code,
     specialtyTitle: row.specialty_title,
   };
+}
+
+function isValidEquipmentId(value) {
+  return typeof value === "string" && equipmentIdPattern.test(value);
+}
+
+function validateEquipmentIdParam(req, res, next) {
+  if (!isValidEquipmentId(req.params.equipmentId)) {
+    res.status(400).json({ error: "Invalid equipment id" });
+    return;
+  }
+
+  next();
 }
 
 async function initDb() {
@@ -327,7 +384,7 @@ app.get("/api/equipment", async (_req, res, next) => {
   }
 });
 
-app.get("/api/equipment/:equipmentId", async (req, res, next) => {
+app.get("/api/equipment/:equipmentId", validateEquipmentIdParam, async (req, res, next) => {
   try {
     const equipment = await findEquipment(req.params.equipmentId);
     if (!equipment) {
@@ -340,7 +397,7 @@ app.get("/api/equipment/:equipmentId", async (req, res, next) => {
   }
 });
 
-app.get("/api/qr/:equipmentId", async (req, res, next) => {
+app.get("/api/qr/:equipmentId", validateEquipmentIdParam, async (req, res, next) => {
   try {
     const equipment = await findEquipment(req.params.equipmentId);
     if (!equipment) {
@@ -455,14 +512,15 @@ app.get(["/data/equipment-data.js", "/equipment/data/equipment-data.js"], (_req,
 });
 
 app.use("/vendor", express.static(path.join(rootDir, "vendor"), { index: false }));
-app.use("/models", express.static(path.join(rootDir, "models"), { index: false }));
+app.use("/models", express.static(path.join(rootDir, "public", "models"), modelStaticOptions));
+app.use("/models", express.static(path.join(rootDir, "models"), modelStaticOptions));
 app.use(express.static(rootDir, { index: false }));
 
 app.get("/", (_req, res) => {
   sendIndex(res);
 });
 
-app.get("/equipment/:equipmentId", async (req, res, next) => {
+app.get("/equipment/:equipmentId", validateEquipmentIdParam, async (req, res, next) => {
   try {
     const equipment = await findEquipment(req.params.equipmentId);
     if (!equipment) {
