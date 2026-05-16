@@ -30,6 +30,7 @@ let activeEquipmentId = "";
 let activeEquipmentDetail = null;
 let equipmentDetailError = false;
 let activeHotspotIndex = 0;
+let activeHotspots = [];
 let isWireframe = false;
 let isDragging = false;
 let lastPointer = { x: 0, y: 0 };
@@ -184,16 +185,99 @@ function renderAnnotation(hotspots, index) {
   const hotspot = hotspots[index];
 
   activeHotspotIndex = index;
-  annotationPanel.innerHTML = hotspot
-    ? `<strong>${escapeHtml(hotspot.label)}</strong><span>${escapeHtml(hotspot.note)}</span>`
-    : "<span>Для этой модели аннотации не добавлены.</span>";
+  if (hotspot) {
+    annotationPanel.innerHTML = `<strong>${escapeHtml(hotspot.label)}</strong><span>${escapeHtml(hotspot.note)}</span>`;
+  } else if (hotspots.length) {
+    annotationPanel.innerHTML = "<span>Нажмите на точку на 3D-модели, чтобы открыть пояснение к детали.</span>";
+  } else {
+    annotationPanel.innerHTML = "<span>Для этой модели аннотации не добавлены.</span>";
+  }
 
-  hotspotLayer.querySelectorAll("[data-hotspot-index]").forEach((button) => {
+  document.querySelectorAll("[data-hotspot-index]").forEach((button) => {
     button.classList.toggle("is-active", Number(button.dataset.hotspotIndex) === index);
+    button.setAttribute("aria-expanded", String(Number(button.dataset.hotspotIndex) === index));
   });
 }
 
+function hotspotPosition(hotspot, index) {
+  if (typeof hotspot.position === "string" && hotspot.position.trim()) {
+    return hotspot.position.trim();
+  }
+
+  if (Array.isArray(hotspot.position) && hotspot.position.length >= 3) {
+    return hotspot.position
+      .slice(0, 3)
+      .map((value) => `${Number(value) || 0}m`)
+      .join(" ");
+  }
+
+  const x = Number.isFinite(Number(hotspot.x)) ? Number(hotspot.x) : 50;
+  const y = Number.isFinite(Number(hotspot.y)) ? Number(hotspot.y) : 50;
+  const modelX = ((x / 100) - 0.5) * 1.2;
+  const modelY = (0.5 - y / 100) * 1.2;
+  const modelZ = 0.18 + index * 0.03;
+
+  return `${modelX.toFixed(3)}m ${modelY.toFixed(3)}m ${modelZ.toFixed(3)}m`;
+}
+
+function hotspotNormal(hotspot) {
+  if (typeof hotspot.normal === "string" && hotspot.normal.trim()) {
+    return hotspot.normal.trim();
+  }
+
+  if (Array.isArray(hotspot.normal) && hotspot.normal.length >= 3) {
+    return hotspot.normal
+      .slice(0, 3)
+      .map((value) => `${Number(value) || 0}m`)
+      .join(" ");
+  }
+
+  return "0m 0m 1m";
+}
+
+function renderModelViewerHotspots(hotspots = []) {
+  if (!equipmentModelViewer) {
+    return;
+  }
+
+  equipmentModelViewer.querySelectorAll("[data-hotspot-index]").forEach((hotspot) => hotspot.remove());
+  equipmentModelViewer.insertAdjacentHTML(
+    "beforeend",
+    hotspots
+      .map(
+        (hotspot, index) => `
+          <button
+            class="hotspot hotspot--model"
+            type="button"
+            slot="hotspot-${index}"
+            data-hotspot-index="${index}"
+            data-position="${escapeHtml(hotspotPosition(hotspot, index))}"
+            data-normal="${escapeHtml(hotspotNormal(hotspot))}"
+            aria-label="${escapeHtml(hotspot.label)}"
+            aria-expanded="false"
+          >
+            <span class="hotspot__number">${index + 1}</span>
+            <span class="hotspot__popup" role="status">
+              <strong>${escapeHtml(hotspot.label)}</strong>
+              <span>${escapeHtml(hotspot.note)}</span>
+            </span>
+          </button>
+        `,
+      )
+      .join(""),
+  );
+}
+
 function renderHotspots(hotspots = []) {
+  activeHotspots = hotspots;
+  renderModelViewerHotspots(hotspots);
+
+  if (equipmentModelViewer) {
+    hotspotLayer.innerHTML = "";
+    renderAnnotation(hotspots, -1);
+    return;
+  }
+
   hotspotLayer.innerHTML = hotspots
     .map(
       (hotspot, index) => `
@@ -206,12 +290,16 @@ function renderHotspots(hotspots = []) {
         >
           <span class="hotspot__number">${index + 1}</span>
           <span class="hotspot__label">${escapeHtml(hotspot.label)}</span>
+          <span class="hotspot__popup" role="status">
+            <strong>${escapeHtml(hotspot.label)}</strong>
+            <span>${escapeHtml(hotspot.note)}</span>
+          </span>
         </button>
       `,
     )
     .join("");
 
-  renderAnnotation(hotspots, 0);
+  renderAnnotation(hotspots, -1);
 }
 
 function renderActiveEquipment(equipment) {
@@ -225,8 +313,8 @@ function renderActiveEquipment(equipment) {
   equipmentFeatures.innerHTML = (equipment.features || []).map((feature) => `<li>${escapeHtml(feature)}</li>`).join("");
 
   if (equipmentModelViewer) {
-    equipmentModelViewer.src = equipment.model;
-    equipmentModelViewer.alt = equipment.title;
+    equipmentModelViewer.setAttribute("src", equipment.model);
+    equipmentModelViewer.setAttribute("alt", equipment.title);
   }
 
   renderHotspots(equipment.hotspots || []);
@@ -263,9 +351,11 @@ function renderEquipmentNotFound() {
   modelLink.href = "#";
   modelLink.textContent = "Открыть GLB-источник";
   annotationPanel.innerHTML = "<span>Нет данных для отображения.</span>";
+  activeHotspots = [];
   hotspotLayer.innerHTML = "";
 
   if (equipmentModelViewer) {
+    equipmentModelViewer.querySelectorAll("[data-hotspot-index]").forEach((hotspot) => hotspot.remove());
     equipmentModelViewer.removeAttribute("src");
     equipmentModelViewer.alt = "";
   }
@@ -495,14 +585,16 @@ equipmentList.addEventListener("click", async (event) => {
   render();
 });
 
-hotspotLayer.addEventListener("click", (event) => {
+function handleHotspotClick(event) {
   const hotspot = event.target.closest("[data-hotspot-index]");
   if (!hotspot) return;
 
   event.stopPropagation();
-  const { equipment } = findEquipment(activeEquipmentId);
-  renderAnnotation(equipment.hotspots || [], Number(hotspot.dataset.hotspotIndex));
-});
+  renderAnnotation(activeHotspots, Number(hotspot.dataset.hotspotIndex));
+}
+
+hotspotLayer.addEventListener("click", handleHotspotClick);
+equipmentModelViewer?.addEventListener("click", handleHotspotClick);
 
 hotspotLayer.addEventListener("pointerdown", (event) => {
   if (event.target.closest("[data-hotspot-index]")) {
