@@ -9,7 +9,9 @@
     />
     <title>3D визуализация учебного оборудования</title>
     <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <script src="data/equipment-data.js"></script>
+    <script src="vendor/qrcode.js"></script>
     <script defer src="app.js"></script>
   </head>
   <body>
@@ -95,37 +97,19 @@
 
           <article class="viewer-card">
             <div class="viewer-shell">
-              <div class="local-viewer" id="local-viewer" role="img" aria-label="Интерактивный 3D макет оборудования">
-                <div class="local-viewer__scene" id="local-scene">
-                  <div class="scene-floor"></div>
-                  <div class="equipment-3d" id="equipment-shape" data-variant="sensor" aria-hidden="true">
-                    <span class="face face--front"></span>
-                    <span class="face face--back"></span>
-                    <span class="face face--left"></span>
-                    <span class="face face--right"></span>
-                    <span class="face face--top"></span>
-                    <span class="face face--bottom"></span>
-                    <span class="detail detail--one"></span>
-                    <span class="detail detail--two"></span>
-                    <span class="detail detail--three"></span>
-                  </div>
-                </div>
+              <model-viewer
+                id="model-viewer"
+                camera-controls
+                auto-rotate
+                shadow-intensity="1"
+                exposure="1"
+                loading="lazy"
+                reveal="auto"
+                alt="Интерактивная 3D модель оборудования"
+              >
                 <div class="hotspot-layer" id="hotspot-layer" aria-label="Аннотации модели"></div>
                 <div class="local-viewer__hint">Потяните мышью для вращения, колесо — для масштаба</div>
-                <div class="viewer-zoom-controls" data-viewer-control aria-label="Управление масштабом модели">
-                  <button class="zoom-control" id="zoom-out" data-viewer-control type="button" aria-label="Отдалить модель">−</button>
-                  <button
-                    class="zoom-control zoom-control--label"
-                    id="zoom-reset"
-                    data-viewer-control
-                    type="button"
-                    aria-label="Сбросить масштаб"
-                  >
-                    100%
-                  </button>
-                  <button class="zoom-control" id="zoom-in" data-viewer-control type="button" aria-label="Приблизить модель">+</button>
-                </div>
-              </div>
+              </model-viewer>
             </div>
 
             <div class="viewer-info">
@@ -137,8 +121,8 @@
               </div>
               <ul class="feature-list" id="equipment-features"></ul>
               <div class="viewer-info__actions">
-                <button class="button button--ghost" id="wireframe-toggle" type="button" aria-pressed="false">
-                  Сетка
+                <button class="button button--ghost" id="wireframe-toggle" type="button" aria-pressed="true">
+                  Автоповорот
                 </button>
                 <button class="button button--primary" id="qr-open" type="button">
                   Показать QR-код

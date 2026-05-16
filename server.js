@@ -75,6 +75,33 @@ function normalizeArray(value) {
   return value.filter((item) => typeof item === "string" && item.trim().length > 0).map((item) => item.trim());
 }
 
+function parseJsonArray(value) {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function normalizeEquipmentRow(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    type: row.type,
+    short: row.short,
+    description: row.description,
+    features: parseJsonArray(row.features_json),
+    model: row.model,
+    environment: row.environment,
+    variant: row.variant,
+    hotspots: parseJsonArray(row.hotspots_json),
+    specialtyId: row.specialty_id,
+    specialtyCode: row.specialty_code,
+    specialtyTitle: row.specialty_title,
+  };
+}
+
 async function initDb() {
   await run("PRAGMA foreign_keys = ON");
   await run(`
@@ -169,18 +196,7 @@ async function readSpecialties() {
 
   const bySpecialty = new Map();
   for (const row of equipmentRows) {
-    const normalized = {
-      id: row.id,
-      title: row.title,
-      type: row.type,
-      short: row.short,
-      description: row.description,
-      features: JSON.parse(row.features_json || "[]"),
-      model: row.model,
-      environment: row.environment,
-      variant: row.variant,
-      hotspots: JSON.parse(row.hotspots_json || "[]"),
-    };
+    const normalized = normalizeEquipmentRow(row);
     if (!bySpecialty.has(row.specialty_id)) {
       bySpecialty.set(row.specialty_id, []);
     }
@@ -206,8 +222,28 @@ async function allEquipment() {
 }
 
 async function findEquipment(equipmentId) {
-  const equipment = await allEquipment();
-  return equipment.find((item) => item.id === equipmentId) || null;
+  const row = await get(
+    `SELECT
+       e.id,
+       e.specialty_id,
+       e.title,
+       e.type,
+       e.short,
+       e.description,
+       e.features_json,
+       e.model,
+       e.environment,
+       e.variant,
+       e.hotspots_json,
+       s.code AS specialty_code,
+       s.title AS specialty_title
+     FROM equipment e
+     INNER JOIN specialties s ON s.id = e.specialty_id
+     WHERE e.id = ?`,
+    [equipmentId],
+  );
+
+  return row ? normalizeEquipmentRow(row) : null;
 }
 
 function getLanAddress() {
@@ -245,7 +281,7 @@ function resolvePublicBaseUrl(req) {
 }
 
 function equipmentUrl(req, equipmentId) {
-  return `${resolvePublicBaseUrl(req)}/equipment/${encodeURIComponent(equipmentId)}?scan=1`;
+  return `${resolvePublicBaseUrl(req)}/?id=${encodeURIComponent(equipmentId)}`;
 }
 
 async function appendScanLog(req, equipment) {

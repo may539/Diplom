@@ -7,15 +7,10 @@ const equipmentTitle = document.querySelector("#equipment-title");
 const equipmentDescription = document.querySelector("#equipment-description");
 const equipmentFeatures = document.querySelector("#equipment-features");
 const modelLink = document.querySelector("#model-link");
-const localViewer = document.querySelector("#local-viewer");
-const localScene = document.querySelector("#local-scene");
-const equipmentShape = document.querySelector("#equipment-shape");
+const modelViewer = document.querySelector("#model-viewer");
 const hotspotLayer = document.querySelector("#hotspot-layer");
 const annotationPanel = document.querySelector("#annotation-panel");
-const wireframeToggle = document.querySelector("#wireframe-toggle");
-const zoomOutButton = document.querySelector("#zoom-out");
-const zoomInButton = document.querySelector("#zoom-in");
-const zoomResetButton = document.querySelector("#zoom-reset");
+const autoRotateToggle = document.querySelector("#wireframe-toggle");
 const qrModal = document.querySelector("#qr-modal");
 const qrImage = document.querySelector("#qr-image");
 const qrCaption = document.querySelector("#qr-caption");
@@ -26,14 +21,10 @@ const isFileMode = window.location.protocol === "file:";
 let specialties = [];
 let activeSpecialtyId = "";
 let activeEquipmentId = "";
+let activeEquipment = null;
 let activeHotspotIndex = 0;
-let isWireframe = false;
-let isDragging = false;
-let lastPointer = { x: 0, y: 0 };
-let rotation = { x: -22, y: 38 };
-let zoom = 1;
-const ZOOM_MIN = 0.7;
-const ZOOM_MAX = 1.8;
+let isAutoRotate = true;
+let selectionRequestId = 0;
 
 function escapeHtml(value) {
   return String(value)
@@ -49,15 +40,25 @@ function allEquipment() {
     specialty.equipment.map((equipment) => ({
       ...equipment,
       specialtyId: specialty.id,
+      specialtyCode: specialty.code,
+      specialtyTitle: specialty.title,
     })),
   );
+}
+
+function firstCatalogItem() {
+  const specialty = specialties[0];
+  return {
+    specialty,
+    equipment: specialty?.equipment?.[0],
+  };
 }
 
 function findSpecialty(id) {
   return specialties.find((specialty) => specialty.id === id) || specialties[0];
 }
 
-function findEquipment(id) {
+function findEquipmentCatalogMatch(id) {
   for (const specialty of specialties) {
     const equipment = specialty.equipment.find((item) => item.id === id);
     if (equipment) {
@@ -65,14 +66,24 @@ function findEquipment(id) {
     }
   }
 
-  return {
-    specialty: specialties[0],
-    equipment: specialties[0].equipment[0],
-  };
+  return null;
 }
 
-function equipmentPath(equipmentId) {
-  return `/equipment/${encodeURIComponent(equipmentId)}`;
+function findEquipmentInCatalog(id) {
+  const match = findEquipmentCatalogMatch(id);
+  if (match) {
+    return match;
+  }
+
+  return firstCatalogItem();
+}
+
+function equipmentPageUrl(equipmentId) {
+  const origin =
+    window.location.origin && window.location.origin !== "null" ? window.location.origin : "http://localhost:8080";
+  const url = new URL("/", origin);
+  url.searchParams.set("id", equipmentId);
+  return url.toString();
 }
 
 function readEquipmentIdFromLocation() {
@@ -80,16 +91,20 @@ function readEquipmentIdFromLocation() {
   const hashParams = new URLSearchParams(window.location.hash.replace("#", ""));
   const searchParams = new URLSearchParams(window.location.search);
 
+  if (searchParams.has("id")) {
+    return searchParams.get("id");
+  }
+
   if (pathMatch) {
     return decodeURIComponent(pathMatch[1]);
   }
 
-  return hashParams.get("equipment") || searchParams.get("equipment");
+  return searchParams.get("equipment") || hashParams.get("id") || hashParams.get("equipment");
 }
 
 function setEquipmentRoute(equipmentId, mode = "push") {
   if (isFileMode) {
-    const nextHash = `equipment=${equipmentId}`;
+    const nextHash = `id=${encodeURIComponent(equipmentId)}`;
 
     if (window.location.hash.replace("#", "") === nextHash) {
       return;
@@ -99,32 +114,42 @@ function setEquipmentRoute(equipmentId, mode = "push") {
     return;
   }
 
-  const nextPath = equipmentPath(equipmentId);
+  const nextUrl = new URL(window.location.href);
+  nextUrl.pathname = "/";
+  nextUrl.searchParams.delete("equipment");
+  nextUrl.searchParams.set("id", equipmentId);
 
-  if (window.location.pathname === nextPath && !window.location.search && !window.location.hash) {
+  if (window.location.href === nextUrl.toString()) {
     return;
   }
 
-  history[mode === "replace" ? "replaceState" : "pushState"](null, "", nextPath);
+  history[mode === "replace" ? "replaceState" : "pushState"](null, "", nextUrl);
 }
 
-function setViewerTransform() {
-  localScene.style.setProperty("--viewer-rx", `${rotation.x}deg`);
-  localScene.style.setProperty("--viewer-ry", `${rotation.y}deg`);
-  localScene.style.setProperty("--viewer-scale", zoom.toFixed(3));
+async function fetchJson(url) {
+  const response = await fetch(url, { headers: { Accept: "application/json" } });
+
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+
+  return response.json();
 }
 
-function syncZoomControls() {
-  if (!zoomResetButton) return;
-  zoomResetButton.textContent = `${Math.round(zoom * 100)}%`;
-  zoomOutButton.disabled = zoom <= ZOOM_MIN + 0.001;
-  zoomInButton.disabled = zoom >= ZOOM_MAX - 0.001;
+async function fetchEquipment(equipmentId) {
+  if (isFileMode) {
+    return findEquipmentInCatalog(equipmentId).equipment;
+  }
+
+  return fetchJson(`/api/equipment/${encodeURIComponent(equipmentId)}`);
 }
 
-function setZoom(nextZoom) {
-  zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, nextZoom));
-  setViewerTransform();
-  syncZoomControls();
+function normalizeEquipment(equipment) {
+  return {
+    ...equipment,
+    features: Array.isArray(equipment.features) ? equipment.features : [],
+    hotspots: Array.isArray(equipment.hotspots) ? equipment.hotspots : [],
+  };
 }
 
 function renderSpecialties() {
@@ -192,14 +217,21 @@ function renderHotspots(hotspots = []) {
 }
 
 function renderActiveEquipment(equipment) {
-  localViewer.setAttribute("aria-label", `Интерактивный 3D макет: ${equipment.title}`);
-  equipmentShape.dataset.variant = equipment.variant;
-  equipmentType.textContent = equipment.type;
-  equipmentTitle.textContent = equipment.title;
-  equipmentDescription.textContent = equipment.description;
-  modelLink.href = equipment.model;
-  equipmentFeatures.innerHTML = equipment.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("");
-  renderHotspots(equipment.hotspots);
+  const normalized = normalizeEquipment(equipment);
+
+  activeEquipment = normalized;
+  activeEquipmentId = normalized.id;
+  activeSpecialtyId = normalized.specialtyId || activeSpecialtyId;
+
+  modelViewer.setAttribute("src", normalized.model);
+  modelViewer.setAttribute("alt", `Интерактивная 3D модель: ${normalized.title}`);
+  modelViewer.toggleAttribute("auto-rotate", isAutoRotate);
+  equipmentType.textContent = normalized.type;
+  equipmentTitle.textContent = normalized.title;
+  equipmentDescription.textContent = normalized.description;
+  modelLink.href = normalized.model;
+  equipmentFeatures.innerHTML = normalized.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("");
+  renderHotspots(normalized.hotspots);
 }
 
 function syncActiveStates() {
@@ -212,74 +244,84 @@ function syncActiveStates() {
   });
 }
 
-function syncWireframe() {
-  localViewer.classList.toggle("is-wireframe", isWireframe);
-  wireframeToggle.setAttribute("aria-pressed", String(isWireframe));
-  wireframeToggle.classList.toggle("is-active", isWireframe);
+function syncAutoRotate() {
+  modelViewer.toggleAttribute("auto-rotate", isAutoRotate);
+  autoRotateToggle.setAttribute("aria-pressed", String(isAutoRotate));
+  autoRotateToggle.classList.toggle("is-active", isAutoRotate);
 }
 
-function render() {
-  const specialty = findSpecialty(activeSpecialtyId);
-  const equipment = specialty.equipment.find((item) => item.id === activeEquipmentId) || specialty.equipment[0];
+function renderLoadingState() {
+  equipmentTitle.textContent = "Загрузка оборудования...";
+  equipmentDescription.textContent = "Получаем данные из SQLite через API.";
+  equipmentFeatures.innerHTML = "";
+  annotationPanel.innerHTML = "<span>Аннотации появятся после загрузки модели.</span>";
+}
 
-  activeSpecialtyId = specialty.id;
-  activeEquipmentId = equipment.id;
-  renderEquipmentList(specialty);
-  renderActiveEquipment(equipment);
+function renderErrorState() {
+  equipmentTitle.textContent = "Не удалось загрузить оборудование";
+  equipmentDescription.textContent = "Проверьте ID в адресной строке и работу Node.js сервера.";
+  equipmentFeatures.innerHTML = "";
+  annotationPanel.innerHTML = "<span>Данные модели недоступны.</span>";
+}
+
+async function selectEquipment(equipmentId, mode = "push", options = {}) {
+  const requestId = (selectionRequestId += 1);
+  const catalogMatch = findEquipmentCatalogMatch(equipmentId) || firstCatalogItem();
+  const fallback = catalogMatch.equipment || firstCatalogItem().equipment;
+
+  activeSpecialtyId = catalogMatch.specialty?.id || activeSpecialtyId;
+  activeEquipmentId = fallback?.id || equipmentId;
+  renderEquipmentList(catalogMatch.specialty || findSpecialty(activeSpecialtyId));
   syncActiveStates();
-  syncWireframe();
+  renderLoadingState();
+
+  try {
+    const equipment = await fetchEquipment(equipmentId);
+
+    if (requestId !== selectionRequestId) {
+      return;
+    }
+
+    renderActiveEquipment(equipment);
+    setEquipmentRoute(equipment.id, mode);
+    syncActiveStates();
+    syncAutoRotate();
+
+    if (options.scrollToViewer) {
+      document.querySelector("#viewer").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  } catch (error) {
+    if (requestId !== selectionRequestId) {
+      return;
+    }
+
+    renderErrorState();
+  }
 }
 
-function initFromLocation() {
-  const equipmentId = readEquipmentIdFromLocation();
-
-  if (!equipmentId) {
-    activeSpecialtyId = specialties[0].id;
-    activeEquipmentId = specialties[0].equipment[0].id;
-    return;
+function createQrDataUrl(url) {
+  if (typeof qrcode !== "function") {
+    return "";
   }
 
-  const { specialty, equipment } = findEquipment(equipmentId);
-  activeSpecialtyId = specialty.id;
-  activeEquipmentId = equipment.id;
+  const qr = qrcode(0, "M");
+  qr.addData(url);
+  qr.make();
+  return qr.createDataURL(8, 16);
 }
 
-async function openQrModal() {
-  const { equipment } = findEquipment(activeEquipmentId);
+function openQrModal() {
+  const equipment = activeEquipment || findEquipmentInCatalog(activeEquipmentId).equipment;
+  const url = equipmentPageUrl(equipment.id);
 
-  qrCaption.textContent = "Генерация QR-кода на сервере...";
+  qrCaption.textContent = `${equipment.title}: отсканируйте код, чтобы открыть эту 3D-модель.`;
+  qrDirectLink.href = url;
+  qrDirectLink.textContent = url;
   qrImage.hidden = false;
-  qrImage.removeAttribute("src");
-  qrDirectLink.removeAttribute("href");
-  qrDirectLink.textContent = "";
+  qrImage.src = createQrDataUrl(url);
   qrModal.classList.add("is-open");
   qrModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
-
-  if (isFileMode) {
-    qrImage.hidden = true;
-    qrCaption.textContent =
-      "Для корректного QR-кода запустите сервер командой npm start и откройте http://localhost:8080.";
-    qrDirectLink.href = "http://localhost:8080";
-    qrDirectLink.textContent = "Открыть серверную версию";
-    return;
-  }
-
-  try {
-    const response = await fetch(`/api/qr/${encodeURIComponent(equipment.id)}`);
-
-    if (!response.ok) {
-      throw new Error("QR API request failed");
-    }
-
-    const qr = await response.json();
-    qrImage.src = qr.imageDataUrl;
-    qrCaption.textContent = `${qr.title}: отсканируйте код, чтобы открыть эту 3D-модель.`;
-    qrDirectLink.href = qr.url;
-    qrDirectLink.textContent = qr.url;
-  } catch (error) {
-    qrCaption.textContent = "Не удалось получить QR-код с сервера.";
-  }
 }
 
 function closeQrModal() {
@@ -314,13 +356,7 @@ async function loadData() {
     specialties = window.EQUIPMENT_DATA;
   } else {
     try {
-      const response = await fetch("/api/specialties");
-
-      if (!response.ok) {
-        throw new Error("Specialties API request failed");
-      }
-
-      specialties = await response.json();
+      specialties = await fetchJson("/api/specialties");
     } catch (error) {
       if (!window.EQUIPMENT_DATA) {
         throw error;
@@ -340,42 +376,28 @@ specialtyGrid.addEventListener("click", (event) => {
   if (!card) return;
 
   const specialty = findSpecialty(card.dataset.specialty);
-  activeSpecialtyId = specialty.id;
-  activeEquipmentId = specialty.equipment[0].id;
-  setEquipmentRoute(activeEquipmentId);
-  render();
-  document.querySelector("#viewer").scrollIntoView({ behavior: "smooth", block: "start" });
+  const equipment = specialty.equipment[0];
+  selectEquipment(equipment.id, "push", { scrollToViewer: true });
 });
 
 equipmentList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-equipment]");
   if (!button) return;
 
-  const { specialty, equipment } = findEquipment(button.dataset.equipment);
-  activeSpecialtyId = specialty.id;
-  activeEquipmentId = equipment.id;
-  setEquipmentRoute(equipment.id);
-  render();
+  selectEquipment(button.dataset.equipment);
 });
 
 hotspotLayer.addEventListener("click", (event) => {
   const hotspot = event.target.closest("[data-hotspot-index]");
-  if (!hotspot) return;
+  if (!hotspot || !activeEquipment) return;
 
   event.stopPropagation();
-  const { equipment } = findEquipment(activeEquipmentId);
-  renderAnnotation(equipment.hotspots || [], Number(hotspot.dataset.hotspotIndex));
+  renderAnnotation(activeEquipment.hotspots || [], Number(hotspot.dataset.hotspotIndex));
 });
 
-hotspotLayer.addEventListener("pointerdown", (event) => {
-  if (event.target.closest("[data-hotspot-index]")) {
-    event.stopPropagation();
-  }
-});
-
-wireframeToggle.addEventListener("click", () => {
-  isWireframe = !isWireframe;
-  syncWireframe();
+autoRotateToggle.addEventListener("click", () => {
+  isAutoRotate = !isAutoRotate;
+  syncAutoRotate();
 });
 
 qrButtons.forEach((button) => button.addEventListener("click", openQrModal));
@@ -394,16 +416,6 @@ window.addEventListener("keydown", (event) => {
 
 let syncScheduled = false;
 
-function syncFromLocation() {
-  initFromLocation();
-
-  if (window.location.hash.replace("#", "").startsWith("equipment=")) {
-    setEquipmentRoute(activeEquipmentId, "replace");
-  }
-
-  render();
-}
-
 function scheduleSyncFromLocation() {
   if (syncScheduled) {
     return;
@@ -412,73 +424,24 @@ function scheduleSyncFromLocation() {
   syncScheduled = true;
   window.requestAnimationFrame(() => {
     syncScheduled = false;
-    syncFromLocation();
+    selectEquipment(readEquipmentIdFromLocation() || firstCatalogItem().equipment.id, "replace");
   });
 }
 
 window.addEventListener("hashchange", scheduleSyncFromLocation);
 window.addEventListener("popstate", scheduleSyncFromLocation);
 
-localViewer.addEventListener("pointerdown", (event) => {
-  if (event.target.closest("[data-hotspot-index], [data-viewer-control]")) {
-    return;
-  }
-
-  isDragging = true;
-  lastPointer = { x: event.clientX, y: event.clientY };
-  localViewer.setPointerCapture(event.pointerId);
-});
-
-localViewer.addEventListener("pointermove", (event) => {
-  if (!isDragging) return;
-
-  const deltaX = event.clientX - lastPointer.x;
-  const deltaY = event.clientY - lastPointer.y;
-  rotation = {
-    x: Math.max(-70, Math.min(12, rotation.x - deltaY * 0.35)),
-    y: rotation.y + deltaX * 0.45,
-  };
-  lastPointer = { x: event.clientX, y: event.clientY };
-  setViewerTransform();
-});
-
-localViewer.addEventListener("pointerup", (event) => {
-  isDragging = false;
-  localViewer.releasePointerCapture(event.pointerId);
-});
-
-localViewer.addEventListener(
-  "wheel",
-  (event) => {
-    event.preventDefault();
-    setZoom(zoom - event.deltaY * 0.0015);
-  },
-  { passive: false },
-);
-
-zoomOutButton.addEventListener("click", () => {
-  setZoom(zoom - 0.12);
-});
-
-zoomInButton.addEventListener("click", () => {
-  setZoom(zoom + 0.12);
-});
-
-zoomResetButton.addEventListener("click", () => {
-  setZoom(1);
-});
-
 async function init() {
   try {
-    setZoom(1);
     await loadData();
-    initFromLocation();
     renderSpecialties();
-    render();
+    syncAutoRotate();
+    await selectEquipment(readEquipmentIdFromLocation() || firstCatalogItem().equipment.id, "replace");
     applyInitialViewOptions();
   } catch (error) {
     specialtyGrid.innerHTML = '<p class="error-state">Не удалось загрузить каталог оборудования.</p>';
     equipmentList.innerHTML = '<p class="error-state">Проверьте запуск Node.js сервера.</p>';
+    renderErrorState();
   }
 }
 
