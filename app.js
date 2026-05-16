@@ -36,12 +36,12 @@ let isDragging = false;
 let lastPointer = { x: 0, y: 0 };
 let rotation = { x: -22, y: 38 };
 let zoom = 1;
-let modelFieldOfView = 35;
+let modelCameraRadius = 165;
 const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.8;
-const MODEL_FOV_MIN = 18;
-const MODEL_FOV_MAX = 60;
-const MODEL_FOV_DEFAULT = 35;
+const MODEL_CAMERA_RADIUS_MIN = 70;
+const MODEL_CAMERA_RADIUS_MAX = 320;
+const MODEL_CAMERA_RADIUS_DEFAULT = 165;
 
 function escapeHtml(value) {
   return String(value)
@@ -145,9 +145,9 @@ function syncZoomControls() {
   if (!zoomResetButton) return;
   const glbMode = Boolean(equipmentModelViewer?.src);
   if (glbMode) {
-    zoomResetButton.textContent = `${Math.round((MODEL_FOV_DEFAULT / modelFieldOfView) * 100)}%`;
-    zoomOutButton.disabled = modelFieldOfView >= MODEL_FOV_MAX - 0.001;
-    zoomInButton.disabled = modelFieldOfView <= MODEL_FOV_MIN + 0.001;
+    zoomResetButton.textContent = `${Math.round((MODEL_CAMERA_RADIUS_DEFAULT / modelCameraRadius) * 100)}%`;
+    zoomOutButton.disabled = modelCameraRadius >= MODEL_CAMERA_RADIUS_MAX - 0.001;
+    zoomInButton.disabled = modelCameraRadius <= MODEL_CAMERA_RADIUS_MIN + 0.001;
     return;
   }
 
@@ -162,9 +162,9 @@ function setZoom(nextZoom) {
   syncZoomControls();
 }
 
-function setModelFieldOfView(nextFieldOfView) {
-  modelFieldOfView = Math.max(MODEL_FOV_MIN, Math.min(MODEL_FOV_MAX, nextFieldOfView));
-  equipmentModelViewer?.setAttribute("field-of-view", `${modelFieldOfView.toFixed(1)}deg`);
+function setModelCameraRadius(nextRadius) {
+  modelCameraRadius = Math.max(MODEL_CAMERA_RADIUS_MIN, Math.min(MODEL_CAMERA_RADIUS_MAX, nextRadius));
+  equipmentModelViewer?.setAttribute("camera-orbit", `auto auto ${modelCameraRadius.toFixed(1)}%`);
   syncZoomControls();
 }
 
@@ -333,7 +333,7 @@ function renderActiveEquipment(equipment) {
     equipmentModelViewer.setAttribute("src", equipment.model);
     equipmentModelViewer.setAttribute("alt", equipment.title);
     equipmentModelViewer.toggleAttribute("auto-rotate", isAutoRotate);
-    setModelFieldOfView(modelFieldOfView);
+    setModelCameraRadius(modelCameraRadius);
   }
 
   renderHotspots(equipment.hotspots || []);
@@ -717,7 +717,7 @@ localViewer.addEventListener(
 
 zoomOutButton.addEventListener("click", () => {
   if (equipmentModelViewer?.src) {
-    setModelFieldOfView(modelFieldOfView + 5);
+    setModelCameraRadius(modelCameraRadius + 25);
     return;
   }
 
@@ -726,7 +726,7 @@ zoomOutButton.addEventListener("click", () => {
 
 zoomInButton.addEventListener("click", () => {
   if (equipmentModelViewer?.src) {
-    setModelFieldOfView(modelFieldOfView - 5);
+    setModelCameraRadius(modelCameraRadius - 20);
     return;
   }
 
@@ -735,7 +735,7 @@ zoomInButton.addEventListener("click", () => {
 
 zoomResetButton.addEventListener("click", () => {
   if (equipmentModelViewer?.src) {
-    setModelFieldOfView(MODEL_FOV_DEFAULT);
+    setModelCameraRadius(MODEL_CAMERA_RADIUS_DEFAULT);
     return;
   }
 
