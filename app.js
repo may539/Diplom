@@ -31,13 +31,17 @@ let activeEquipmentDetail = null;
 let equipmentDetailError = false;
 let activeHotspotIndex = 0;
 let activeHotspots = [];
-let isWireframe = false;
+let isAutoRotate = true;
 let isDragging = false;
 let lastPointer = { x: 0, y: 0 };
 let rotation = { x: -22, y: 38 };
 let zoom = 1;
+let modelFieldOfView = 35;
 const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.8;
+const MODEL_FOV_MIN = 18;
+const MODEL_FOV_MAX = 60;
+const MODEL_FOV_DEFAULT = 35;
 
 function escapeHtml(value) {
   return String(value)
@@ -140,14 +144,27 @@ function setViewerTransform() {
 function syncZoomControls() {
   if (!zoomResetButton) return;
   const glbMode = Boolean(equipmentModelViewer?.src);
+  if (glbMode) {
+    zoomResetButton.textContent = `${Math.round((MODEL_FOV_DEFAULT / modelFieldOfView) * 100)}%`;
+    zoomOutButton.disabled = modelFieldOfView >= MODEL_FOV_MAX - 0.001;
+    zoomInButton.disabled = modelFieldOfView <= MODEL_FOV_MIN + 0.001;
+    return;
+  }
+
   zoomResetButton.textContent = `${Math.round(zoom * 100)}%`;
-  zoomOutButton.disabled = glbMode || zoom <= ZOOM_MIN + 0.001;
-  zoomInButton.disabled = glbMode || zoom >= ZOOM_MAX - 0.001;
+  zoomOutButton.disabled = zoom <= ZOOM_MIN + 0.001;
+  zoomInButton.disabled = zoom >= ZOOM_MAX - 0.001;
 }
 
 function setZoom(nextZoom) {
   zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, nextZoom));
   setViewerTransform();
+  syncZoomControls();
+}
+
+function setModelFieldOfView(nextFieldOfView) {
+  modelFieldOfView = Math.max(MODEL_FOV_MIN, Math.min(MODEL_FOV_MAX, nextFieldOfView));
+  equipmentModelViewer?.setAttribute("field-of-view", `${modelFieldOfView.toFixed(1)}deg`);
   syncZoomControls();
 }
 
@@ -315,6 +332,8 @@ function renderActiveEquipment(equipment) {
   if (equipmentModelViewer) {
     equipmentModelViewer.setAttribute("src", equipment.model);
     equipmentModelViewer.setAttribute("alt", equipment.title);
+    equipmentModelViewer.toggleAttribute("auto-rotate", isAutoRotate);
+    setModelFieldOfView(modelFieldOfView);
   }
 
   renderHotspots(equipment.hotspots || []);
@@ -330,16 +349,12 @@ function syncActiveStates() {
   });
 }
 
-function syncWireframe() {
-  const glbMode = Boolean(equipmentModelViewer?.src);
-  wireframeToggle.disabled = glbMode;
-  if (glbMode) {
-    return;
-  }
-
-  localViewer.classList.toggle("is-wireframe", isWireframe);
-  wireframeToggle.setAttribute("aria-pressed", String(isWireframe));
-  wireframeToggle.classList.toggle("is-active", isWireframe);
+function syncAutoRotate() {
+  equipmentModelViewer?.toggleAttribute("auto-rotate", isAutoRotate);
+  wireframeToggle.disabled = false;
+  wireframeToggle.setAttribute("aria-pressed", String(isAutoRotate));
+  wireframeToggle.classList.toggle("is-active", isAutoRotate);
+  wireframeToggle.textContent = isAutoRotate ? "Автопрокрутка: вкл" : "Автопрокрутка: выкл";
 }
 
 function renderEquipmentNotFound() {
@@ -382,7 +397,7 @@ function render() {
     renderEquipmentList(specialty);
     renderEquipmentNotFound();
     syncActiveStates();
-    syncWireframe();
+    syncAutoRotate();
     syncZoomControls();
     return;
   }
@@ -397,7 +412,7 @@ function render() {
   renderEquipmentList(specialty);
   renderActiveEquipment(equipment);
   syncActiveStates();
-  syncWireframe();
+  syncAutoRotate();
   syncZoomControls();
 }
 
@@ -603,8 +618,8 @@ hotspotLayer.addEventListener("pointerdown", (event) => {
 });
 
 wireframeToggle.addEventListener("click", () => {
-  isWireframe = !isWireframe;
-  syncWireframe();
+  isAutoRotate = !isAutoRotate;
+  syncAutoRotate();
 });
 
 qrButtons.forEach((button) => button.addEventListener("click", openQrModal));
@@ -701,14 +716,29 @@ localViewer.addEventListener(
 );
 
 zoomOutButton.addEventListener("click", () => {
+  if (equipmentModelViewer?.src) {
+    setModelFieldOfView(modelFieldOfView + 5);
+    return;
+  }
+
   setZoom(zoom - 0.12);
 });
 
 zoomInButton.addEventListener("click", () => {
+  if (equipmentModelViewer?.src) {
+    setModelFieldOfView(modelFieldOfView - 5);
+    return;
+  }
+
   setZoom(zoom + 0.12);
 });
 
 zoomResetButton.addEventListener("click", () => {
+  if (equipmentModelViewer?.src) {
+    setModelFieldOfView(MODEL_FOV_DEFAULT);
+    return;
+  }
+
   setZoom(1);
 });
 
