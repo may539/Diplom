@@ -378,6 +378,11 @@ model-viewer.equipment-model-viewer {
   position: absolute;
   inset: 0;
   z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 560px;
+  --poster-color: transparent;
 }
 
 .local-viewer {
@@ -828,6 +833,20 @@ model-viewer.equipment-model-viewer {
   padding: 34px;
 }
 
+.viewer-info__actions {
+  flex-wrap: wrap;
+}
+
+.viewer-info__actions .button {
+  flex: 1 1 132px;
+  min-width: 0;
+  padding-right: 16px;
+  padding-left: 16px;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+}
+
 .viewer-info h3 {
   font-size: clamp(1.8rem, 3vw, 3rem);
   letter-spacing: -0.04em;
@@ -1080,6 +1099,7 @@ body.focus-viewer .section--viewer .section__header {
 
   .viewer-shell,
   model-viewer,
+  model-viewer.equipment-model-viewer,
   .model-fallback {
     min-height: 420px;
   }
