@@ -651,39 +651,52 @@ if (kiosk.info) {
   });
 }
 
+function isMenuOpen() {
+  return Boolean(menuRoot && menuRoot.classList.contains("is-open"));
+}
+
 function closeMenuDropdown() {
-  if (!menuToggle || !menuDropdown) return;
+  if (!menuToggle || !menuDropdown || !menuRoot) return;
   menuToggle.setAttribute("aria-expanded", "false");
-  menuDropdown.hidden = true;
-  menuRoot && menuRoot.classList.remove("is-open");
+  menuDropdown.setAttribute("hidden", "");
+  menuRoot.classList.remove("is-open");
 }
 
 function openMenuDropdown() {
-  if (!menuToggle || !menuDropdown) return;
+  if (!menuToggle || !menuDropdown || !menuRoot) return;
   menuToggle.setAttribute("aria-expanded", "true");
-  menuDropdown.hidden = false;
-  menuRoot && menuRoot.classList.add("is-open");
+  menuDropdown.removeAttribute("hidden");
+  menuRoot.classList.add("is-open");
 }
 
-if (menuToggle && menuDropdown) {
+function toggleMenuDropdown() {
+  if (isMenuOpen()) {
+    closeMenuDropdown();
+  } else {
+    openMenuDropdown();
+  }
+}
+
+if (menuToggle && menuDropdown && menuRoot) {
   menuToggle.addEventListener("click", (event) => {
+    event.preventDefault();
     event.stopPropagation();
-    if (menuDropdown.hidden) {
-      openMenuDropdown();
-    } else {
-      closeMenuDropdown();
-    }
+    toggleMenuDropdown();
+  });
+
+  menuDropdown.addEventListener("click", (event) => {
+    event.stopPropagation();
   });
 
   document.addEventListener("click", (event) => {
-    if (!menuRoot) return;
+    if (!isMenuOpen()) return;
     if (!menuRoot.contains(event.target)) {
       closeMenuDropdown();
     }
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
+    if (event.key === "Escape" && isMenuOpen()) {
       closeMenuDropdown();
     }
   });
@@ -924,6 +937,8 @@ document.querySelectorAll("[data-open-modal]").forEach((trigger) => {
       await loadFaqArticles();
     } else if (target === "about") {
       openModal(document.querySelector("#about-modal"));
+    } else if (target === "privacy") {
+      openModal(document.querySelector("#privacy-modal"));
     }
   });
 });
