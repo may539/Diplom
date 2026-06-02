@@ -65,7 +65,10 @@ npm test
 ## Развёртывание на Linux-VM
 
 Минимальные требования: Ubuntu 22.04+ / Debian 12+ / любой современный
-дистрибутив с Node.js 18+.
+дистрибутив. Способ запуска — на ваш выбор: «голым» Node.js или в Docker.
+Рекомендуем Docker — меньше ручной настройки и проще обновлять.
+
+### Вариант A: напрямую через Node.js
 
 ```bash
 sudo apt update
@@ -75,6 +78,117 @@ cd /opt/diplom
 npm install --omit=dev
 ADMIN_PASSWORD="strong-password" PORT=8080 npm start
 ```
+
+### Вариант B: Docker + docker compose (рекомендуется)
+
+В репозитории уже лежат `Dockerfile`, `docker-compose.yml`, `.dockerignore`
+и `.env.example`. Контейнер собирается на базе `node:20-bookworm-slim`,
+запускается под непривилегированным пользователем `app` и использует
+`tini` для корректной обработки сигналов.
+
+#### 1. Поставьте Docker на VM (Ubuntu/Debian)
+
+```bash
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg git
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/$(. /etc/os-release && echo "$ID")/gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/$(. /etc/os-release && echo "$ID") \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# чтобы запускать docker без sudo
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+Проверьте: `docker --version` и `docker compose version`.
+
+#### 2. Получите код и подготовьте `.env`
+
+```bash
+sudo mkdir -p /opt/diplom && sudo chown $USER:$USER /opt/diplom
+git clone <your-repo-url> /opt/diplom
+cd /opt/diplom
+
+cp .env.example .env
+# отредактируйте .env: смените ADMIN_PASSWORD, при необходимости
+# поменяйте HOST_PORT (например, на 80, если хотите http://<ip>/ без порта)
+nano .env
+```
+
+Файл `.env` (не попадает в git) задаёт переменные:
+
+| Переменная        | По умолчанию | Описание                                              |
+|-------------------|--------------|-------------------------------------------------------|
+| `ADMIN_PASSWORD`  | `admin123`   | Пароль для модального окна «Загрузить модель»         |
+| `HOST_PORT`       | `8080`       | На каком порту VM публиковать сайт                    |
+| `PUBLIC_BASE_URL` | _(пусто)_    | Полный URL сайта, если перед контейнером nginx/CDN    |
+
+Внутри контейнера сервер всегда слушает `8080`, наружу пробрасывается
+`HOST_PORT:8080`.
+
+#### 3. Запуск
+
+```bash
+cd /opt/diplom
+docker compose up -d --build
+```
+
+Что произойдёт:
+
+- образ `diplom-3d:latest` соберётся (multi-stage, ~150–200 МБ);
+- контейнер `diplom-3d` поднимется в фоне с `restart: unless-stopped`;
+- три каталога будут смонтированы как volumes на хост:
+  - `./data` → SQLite-база (`equipment.sqlite`);
+  - `./models/uploads` → загруженные через админку GLB-файлы;
+  - `./logs` → журнал сканирований QR.
+- встроенный healthcheck опрашивает `/api/specialties` каждые 30 секунд.
+
+Откройте `http://<ip-виртуалки>:8080/` (или просто `http://<ip>/`,
+если в `.env` указали `HOST_PORT=80`).
+
+#### 4. Управление
+
+```bash
+docker compose ps              # статус и healthcheck
+docker compose logs -f         # живой лог
+docker compose restart         # перезапуск
+docker compose down            # остановка (volumes сохраняются)
+docker compose up -d --build   # обновить после git pull
+```
+
+#### 5. Обновление кода
+
+```bash
+cd /opt/diplom
+git pull
+docker compose up -d --build
+```
+
+База данных и загруженные файлы переживают пересборку, потому что
+лежат в volumes на хосте.
+
+#### 6. Бэкап
+
+Достаточно сохранить три каталога:
+
+```bash
+tar -czf diplom-backup-$(date +%F).tar.gz data models/uploads logs
+```
+
+#### 7. (Опционально) HTTPS через nginx + certbot
+
+Если хотите проброс через системный nginx с TLS (Let's Encrypt),
+оставьте `HOST_PORT=8080`, чтобы наружу торчал nginx, а контейнер
+был доступен только на `127.0.0.1:8080`. Используйте конфигурацию из
+раздела «nginx как обратный прокси» ниже и в `.env` укажите
+`PUBLIC_BASE_URL=https://college.example.ru`.
 
 ### Запуск как systemd-сервис
 
