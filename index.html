@@ -17,15 +17,34 @@
   <body>
     <header class="hero">
       <nav class="topbar" aria-label="Основная навигация">
-        <a class="brand" href="#top" aria-label="На главную">
+        <a class="brand" href="/" aria-label="На главную">
           <span class="brand__mark">3D</span>
           <span>Учебное оборудование</span>
         </a>
-        <div class="topbar__links">
-          <a href="#specialties">Специальности</a>
-          <a href="#viewer">3D модель</a>
-          <a href="#qr">QR</a>
-          <a href="/admin.html">Админ</a>
+        <div class="menu" id="menu-root">
+          <button
+            class="menu-toggle"
+            id="menu-toggle"
+            type="button"
+            aria-label="Открыть меню"
+            aria-expanded="false"
+            aria-controls="menu-dropdown"
+          >
+            <span class="menu-toggle__bar"></span>
+            <span class="menu-toggle__bar"></span>
+            <span class="menu-toggle__bar"></span>
+          </button>
+          <div class="menu-dropdown" id="menu-dropdown" role="menu" hidden>
+            <button class="menu-item" type="button" role="menuitem" data-open-modal="admin">
+              Загрузить модель
+            </button>
+            <button class="menu-item" type="button" role="menuitem" data-open-modal="faq">
+              База знаний (FAQ)
+            </button>
+            <button class="menu-item" type="button" role="menuitem" data-open-modal="about">
+              О нас
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -188,6 +207,36 @@
       <p>Статический сайт: подходит для размещения на Linux-сервере учебного заведения.</p>
     </footer>
 
+    <div class="kiosk-stage" id="kiosk-stage" aria-hidden="true">
+      <div class="kiosk-stage__inner">
+        <model-viewer
+          id="kiosk-model-viewer"
+          class="model-viewer kiosk-model"
+          alt="Полноэкранный просмотр 3D-модели"
+          camera-controls
+          touch-action="pan-y"
+          shadow-intensity="1"
+          exposure="1"
+          auto-rotate
+          auto-rotate-delay="2500"
+          loading="eager"
+        ></model-viewer>
+        <header class="kiosk-bar" aria-label="Карточка оборудования">
+          <div class="kiosk-bar__text">
+            <p class="eyebrow" id="kiosk-type">Объект</p>
+            <h1 id="kiosk-title">Учебная модель</h1>
+            <p id="kiosk-description"></p>
+          </div>
+          <div class="kiosk-bar__actions">
+            <button class="kiosk-button" id="kiosk-back" type="button">К каталогу</button>
+            <button class="kiosk-button kiosk-button--ghost" id="kiosk-info" type="button" aria-pressed="false">
+              Описание
+            </button>
+          </div>
+        </header>
+      </div>
+    </div>
+
     <div class="modal" id="qr-modal" aria-hidden="true" role="dialog" aria-labelledby="qr-modal-title">
       <div class="modal__overlay" data-close-modal></div>
       <div class="modal__content">
@@ -197,6 +246,130 @@
         <img id="qr-image" src="" alt="QR-код для выбранного оборудования" />
         <p id="qr-caption"></p>
         <a class="qr-link" id="qr-direct-link" href="#">Открыть ссылку</a>
+      </div>
+    </div>
+
+    <div class="modal" id="admin-modal" aria-hidden="true" role="dialog" aria-labelledby="admin-modal-title">
+      <div class="modal__overlay" data-close-modal></div>
+      <div class="modal__content modal__content--wide">
+        <button class="modal__close" type="button" data-close-modal aria-label="Закрыть">×</button>
+        <p class="eyebrow">Админ-панель</p>
+        <h2 id="admin-modal-title">Загрузить модель</h2>
+
+        <div class="admin-step" id="admin-gate" data-step="gate">
+          <p>Введите мастер-пароль администратора, чтобы открыть форму.</p>
+          <form class="admin-gate-form" id="admin-gate-form">
+            <label>
+              Пароль администратора
+              <input type="password" id="admin-gate-password" autocomplete="current-password" required />
+            </label>
+            <button class="button button--primary" type="submit">Открыть форму</button>
+            <p id="admin-gate-status" class="admin-status" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+
+        <div class="admin-step" id="admin-form-step" data-step="form" hidden>
+          <p class="admin-card__hint">
+            Можно вставить ссылку на GLB-модель или загрузить файл (.glb / .gltf, до 50 МБ).
+          </p>
+          <form id="equipment-form" class="admin-form" enctype="multipart/form-data">
+            <label>
+              Специальность *
+              <select name="specialtyId" id="specialty-select" required></select>
+            </label>
+
+            <label>
+              Название модели *
+              <input type="text" name="title" required />
+            </label>
+
+            <label>
+              Тип (например: ОИБ · датчики) *
+              <input type="text" name="type" required />
+            </label>
+
+            <label>
+              Краткое описание *
+              <input type="text" name="short" required />
+            </label>
+
+            <label>
+              Полное описание *
+              <textarea name="description" rows="3" required></textarea>
+            </label>
+
+            <label>
+              Особенности (каждая с новой строки)
+              <textarea name="features" rows="3" placeholder="пункт 1&#10;пункт 2"></textarea>
+            </label>
+
+            <label>
+              Ссылка на GLB-модель
+              <input type="url" name="model" placeholder="https://… или оставьте пустым, если загружаете файл" />
+            </label>
+
+            <label>
+              Загрузить GLB-файл
+              <input type="file" name="modelFile" id="model-file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" />
+            </label>
+
+            <div class="admin-form__row">
+              <label>
+                Вариант 3D-формы
+                <input type="text" name="variant" value="sensor" />
+              </label>
+              <label>
+                Окружение
+                <input type="text" name="environment" value="neutral" />
+              </label>
+            </div>
+
+            <button class="button button--primary" type="submit">Сохранить и получить QR</button>
+            <p id="form-status" class="admin-status" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+
+        <div class="admin-step" id="admin-result" data-step="result" hidden>
+          <h3 id="admin-result-title">Модель добавлена</h3>
+          <canvas id="admin-qr-canvas" width="280" height="280" aria-label="QR-код для новой модели"></canvas>
+          <p id="admin-qr-caption"></p>
+          <a class="qr-link" id="admin-qr-link" href="#" target="_blank" rel="noreferrer">Открыть модель</a>
+          <div class="admin-modal-actions">
+            <button class="button button--primary" id="admin-print-qr" type="button">Печать QR</button>
+            <button class="button button--ghost" type="button" id="admin-add-another">Добавить ещё</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="faq-modal" aria-hidden="true" role="dialog" aria-labelledby="faq-modal-title">
+      <div class="modal__overlay" data-close-modal></div>
+      <div class="modal__content modal__content--wide">
+        <button class="modal__close" type="button" data-close-modal aria-label="Закрыть">×</button>
+        <p class="eyebrow">База знаний</p>
+        <h2 id="faq-modal-title">Справочные статьи</h2>
+        <div id="faq-list" class="faq-list" aria-live="polite">
+          <p class="faq-list__loading">Загрузка статей…</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="about-modal" aria-hidden="true" role="dialog" aria-labelledby="about-modal-title">
+      <div class="modal__overlay" data-close-modal></div>
+      <div class="modal__content">
+        <button class="modal__close" type="button" data-close-modal aria-label="Закрыть">×</button>
+        <p class="eyebrow">О нас</p>
+        <h2 id="about-modal-title">3D-визуализация учебного оборудования</h2>
+        <p>
+          Дипломный проект для учебного заведения: каталог 3D-моделей с QR-доступом к
+          интерактивному просмотру прямо в браузере. Подходит для размещения на сервере
+          колледжа в локальной сети.
+        </p>
+        <ul class="about-list">
+          <li>Стек: Node.js + Express, SQLite, &lt;model-viewer&gt; (Three.js).</li>
+          <li>Хранилище: <code>data/equipment.sqlite</code>, загруженные GLB — <code>models/uploads/</code>.</li>
+          <li>QR формируется из <code>window.location.origin</code>, поэтому работает в любой сети.</li>
+        </ul>
       </div>
     </div>
   </body>

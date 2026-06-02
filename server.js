@@ -5,6 +5,7 @@ const os = require("os");
 const path = require("path");
 const QRCode = require("qrcode");
 const sqlite3 = require("sqlite3").verbose();
+const multer = require("multer");
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
@@ -14,7 +15,36 @@ const rootDir = __dirname;
 const dataJsonPath = path.join(rootDir, "data", "equipment.json");
 const dbPath = path.join(rootDir, "data", "equipment.sqlite");
 const scanLogPath = path.join(rootDir, "logs", "scan.log");
+const uploadsDir = path.join(rootDir, "models", "uploads");
 const db = new sqlite3.Database(dbPath);
+
+fs.mkdirSync(uploadsDir, { recursive: true });
+
+const modelUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsDir),
+    filename: (_req, file, cb) => {
+      const safeBase = String(file.originalname || "model")
+        .toLowerCase()
+        .replace(/[^a-z0-9.-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || "model";
+      const stamp = Date.now().toString(36);
+      const ext = path.extname(safeBase) || ".glb";
+      const stem = path.basename(safeBase, ext) || "model";
+      cb(null, `${stem}-${stamp}${ext}`);
+    },
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    if (ext === ".glb" || ext === ".gltf") {
+      cb(null, true);
+      return;
+    }
+    cb(new Error("Можно загружать только файлы .glb или .gltf."));
+  },
+});
 
 app.set("trust proxy", true);
 app.use(express.json({ limit: "1mb" }));
@@ -109,6 +139,71 @@ async function initDb() {
   const hasHotspotsColumn = tableInfo.some((column) => column.name === "hotspots_json");
   if (!hasHotspotsColumn) {
     await run("ALTER TABLE equipment ADD COLUMN hotspots_json TEXT NOT NULL DEFAULT '[]'");
+  }
+
+  await run(`
+    CREATE TABLE IF NOT EXISTS help_articles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT UNIQUE NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  const helpCountRow = await get("SELECT COUNT(*) AS count FROM help_articles");
+  if ((helpCountRow?.count || 0) === 0) {
+    const seedArticles = [
+      {
+        slug: "qr-mode",
+        title: "Что такое QR-режим?",
+        body:
+          "После сканирования QR-кода со стенда страница открывается с параметром ?equipment=<id>. " +
+          "В этом режиме лендинг скрывается, а 3D-модель занимает весь экран — удобно для мобильного.",
+        sort_order: 1,
+      },
+      {
+        slug: "add-model",
+        title: "Как добавить новую 3D-модель?",
+        body:
+          "Откройте меню (кнопка с тремя полосками) → «Загрузить модель». Введите мастер-пароль, " +
+          "выберите специальность и заполните карточку. Можно указать ссылку на GLB или загрузить файл с диска. " +
+          "После сохранения сразу появится QR-код для печати.",
+        sort_order: 2,
+      },
+      {
+        slug: "supported-formats",
+        title: "Поддерживаемые форматы",
+        body:
+          "Используются модели формата GLB (рекомендуется) или GLTF. Размер файла — до 50 МБ. " +
+          "Для лучшей совместимости с мобильными браузерами держите модель в пределах 5–10 МБ.",
+        sort_order: 3,
+      },
+      {
+        slug: "admin-access",
+        title: "Доступ к админ-панели",
+        body:
+          "Пароль по умолчанию: admin123. На production задайте переменную окружения ADMIN_PASSWORD " +
+          "при запуске сервера, например: ADMIN_PASSWORD=\"strong-pass\" npm start.",
+        sort_order: 4,
+      },
+      {
+        slug: "deploy-vm",
+        title: "Развёртывание на Linux-VM",
+        body:
+          "Установите Node.js 18+, выполните npm install, затем npm start. Для постоянной работы " +
+          "используйте systemd-юнит (см. README) или pm2. Сервер слушает порт 8080 (можно изменить через PORT).",
+        sort_order: 5,
+      },
+    ];
+
+    for (const article of seedArticles) {
+      await run(
+        "INSERT INTO help_articles (slug, title, body, sort_order) VALUES (?, ?, ?, ?)",
+        [article.slug, article.title, article.body, article.sort_order],
+      );
+    }
   }
 
   const seedSpecialties = readJsonSeed();
@@ -330,6 +425,40 @@ app.get("/api/qr/:equipmentId", async (req, res, next) => {
   }
 });
 
+app.get("/api/help-articles", async (_req, res, next) => {
+  try {
+    const rows = await all(
+      "SELECT id, slug, title, body, sort_order FROM help_articles ORDER BY sort_order ASC, id ASC",
+    );
+    res.json(rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/help-articles/:slug", async (req, res, next) => {
+  try {
+    const row = await get(
+      "SELECT id, slug, title, body, sort_order FROM help_articles WHERE slug = ?",
+      [req.params.slug],
+    );
+    if (!row) {
+      res.status(404).json({ error: "Статья не найдена." });
+      return;
+    }
+    res.json(row);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/auth", (req, res) => {
+  if (!assertAdmin(req, res)) {
+    return;
+  }
+  res.json({ ok: true });
+});
+
 app.get("/api/admin/specialties", async (_req, res, next) => {
   try {
     const rows = await all("SELECT id, code, title FROM specialties ORDER BY sort_order ASC, code ASC");
@@ -339,27 +468,66 @@ app.get("/api/admin/specialties", async (_req, res, next) => {
   }
 });
 
-app.post("/api/admin/equipment", async (req, res, next) => {
+function parseFeaturesPayload(value) {
+  if (Array.isArray(value)) {
+    return normalizeArray(value);
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return normalizeArray(parsed);
+      }
+    } catch (_error) {
+      // not JSON — fall through and treat as newline list
+    }
+    return value
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+const adminEquipmentMiddleware = (req, res, next) => {
+  const contentType = String(req.headers["content-type"] || "");
+  if (contentType.startsWith("multipart/form-data")) {
+    modelUpload.single("modelFile")(req, res, next);
+    return;
+  }
+  next();
+};
+
+app.post("/api/admin/equipment", adminEquipmentMiddleware, async (req, res, next) => {
   if (!assertAdmin(req, res)) {
     return;
   }
 
   try {
+    const body = req.body || {};
     const {
       specialtyId,
       title,
       type,
       short,
       description,
-      features = [],
+      features,
       model,
       environment = "neutral",
       variant = "sensor",
-      hotspots = [],
-    } = req.body || {};
+      hotspots,
+    } = body;
 
-    if (!specialtyId || !title || !type || !short || !description || !model) {
-      res.status(400).json({ error: "Заполните все обязательные поля модели." });
+    let resolvedModel = typeof model === "string" ? model.trim() : "";
+    if (req.file) {
+      resolvedModel = `/models/uploads/${req.file.filename}`;
+    }
+
+    if (!specialtyId || !title || !type || !short || !description || !resolvedModel) {
+      res.status(400).json({
+        error:
+          "Заполните все обязательные поля модели и укажите ссылку на GLB или загрузите файл.",
+      });
       return;
     }
 
@@ -377,6 +545,20 @@ app.post("/api/admin/equipment", async (req, res, next) => {
       equipmentId = `${baseId}-${suffix}`;
     }
 
+    let parsedHotspots = [];
+    if (Array.isArray(hotspots)) {
+      parsedHotspots = hotspots;
+    } else if (typeof hotspots === "string" && hotspots.trim().length > 0) {
+      try {
+        const value = JSON.parse(hotspots);
+        if (Array.isArray(value)) {
+          parsedHotspots = value;
+        }
+      } catch (_error) {
+        parsedHotspots = [];
+      }
+    }
+
     await run(
       `INSERT INTO equipment
         (id, specialty_id, title, type, short, description, features_json, model, environment, variant, hotspots_json)
@@ -384,21 +566,22 @@ app.post("/api/admin/equipment", async (req, res, next) => {
       [
         equipmentId,
         specialtyId,
-        title.trim(),
-        type.trim(),
-        short.trim(),
-        description.trim(),
-        JSON.stringify(normalizeArray(features)),
-        model.trim(),
+        String(title).trim(),
+        String(type).trim(),
+        String(short).trim(),
+        String(description).trim(),
+        JSON.stringify(parseFeaturesPayload(features)),
+        resolvedModel,
         String(environment || "neutral").trim(),
         String(variant || "sensor").trim(),
-        JSON.stringify(Array.isArray(hotspots) ? hotspots : []),
+        JSON.stringify(parsedHotspots),
       ],
     );
 
     res.status(201).json({
       id: equipmentId,
-      title: title.trim(),
+      title: String(title).trim(),
+      model: resolvedModel,
       url: equipmentUrl(req, equipmentId),
     });
   } catch (error) {

@@ -1,3 +1,5 @@
 node_modules/
 data/*.sqlite
 logs/scan.log
+models/uploads/*
+!models/uploads/.gitkeep

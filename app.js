@@ -22,7 +22,40 @@ const qrCaption = document.querySelector("#qr-caption");
 const qrDirectLink = document.querySelector("#qr-direct-link");
 const qrButtons = document.querySelectorAll("#qr-open, #qr-open-secondary");
 const modelViewerEl = document.querySelector("#model-viewer");
+const kiosk = {
+  stage: document.querySelector("#kiosk-stage"),
+  viewer: document.querySelector("#kiosk-model-viewer"),
+  type: document.querySelector("#kiosk-type"),
+  title: document.querySelector("#kiosk-title"),
+  description: document.querySelector("#kiosk-description"),
+  back: document.querySelector("#kiosk-back"),
+  info: document.querySelector("#kiosk-info"),
+};
+const menuRoot = document.querySelector("#menu-root");
+const menuToggle = document.querySelector("#menu-toggle");
+const menuDropdown = document.querySelector("#menu-dropdown");
+const allModals = document.querySelectorAll(".modal");
+const adminModal = document.querySelector("#admin-modal");
+const adminGateForm = document.querySelector("#admin-gate-form");
+const adminGatePassword = document.querySelector("#admin-gate-password");
+const adminGateStatus = document.querySelector("#admin-gate-status");
+const adminGateStep = document.querySelector("#admin-gate");
+const adminFormStep = document.querySelector("#admin-form-step");
+const adminResultStep = document.querySelector("#admin-result");
+const adminResultTitle = document.querySelector("#admin-result-title");
+const adminQrCanvas = document.querySelector("#admin-qr-canvas");
+const adminQrCaption = document.querySelector("#admin-qr-caption");
+const adminQrLink = document.querySelector("#admin-qr-link");
+const adminPrintQr = document.querySelector("#admin-print-qr");
+const adminAddAnother = document.querySelector("#admin-add-another");
+const equipmentForm = document.querySelector("#equipment-form");
+const specialtySelect = document.querySelector("#specialty-select");
+const formStatus = document.querySelector("#form-status");
+const faqList = document.querySelector("#faq-list");
 const isFileMode = window.location.protocol === "file:";
+
+let adminUnlockedPassword = "";
+let faqLoaded = false;
 
 let specialties = [];
 let activeSpecialtyId = "";
@@ -319,7 +352,7 @@ function buildEquipmentShareUrl(equipmentId) {
   const origin = window.location.origin && window.location.origin !== "null"
     ? window.location.origin
     : `${window.location.protocol}//${window.location.host}`;
-  return `${origin}/?id=${encodeURIComponent(equipmentId)}`;
+  return `${origin}/?equipment=${encodeURIComponent(equipmentId)}`;
 }
 
 function generateQrDataUrl(text) {
@@ -572,6 +605,329 @@ zoomResetButton.addEventListener("click", () => {
   setZoom(1);
 });
 
+function isKioskRequested() {
+  const params = new URLSearchParams(window.location.search);
+  return Boolean(params.get("equipment") || params.get("id"));
+}
+
+function applyKioskEquipment(equipment) {
+  if (!kiosk.stage || !equipment) return;
+  kiosk.type.textContent = equipment.type || "";
+  kiosk.title.textContent = equipment.title || "";
+  kiosk.description.textContent = equipment.description || "";
+  if (equipment.model) {
+    if (kiosk.viewer.getAttribute("src") !== equipment.model) {
+      kiosk.viewer.setAttribute("src", equipment.model);
+    }
+    kiosk.viewer.setAttribute("alt", `Интерактивная 3D-модель: ${equipment.title}`);
+  }
+}
+
+function enterKioskMode() {
+  if (!kiosk.stage) return;
+  document.body.classList.add("kiosk-mode");
+  kiosk.stage.setAttribute("aria-hidden", "false");
+  kiosk.stage.classList.add("is-active");
+  const { equipment } = findEquipment(activeEquipmentId);
+  applyKioskEquipment(equipment);
+}
+
+function exitKioskMode() {
+  if (!kiosk.stage) return;
+  document.body.classList.remove("kiosk-mode", "kiosk-mode--info");
+  kiosk.stage.setAttribute("aria-hidden", "true");
+  kiosk.stage.classList.remove("is-active");
+  history.replaceState(null, "", "/");
+  scheduleSyncFromLocation();
+}
+
+if (kiosk.back) {
+  kiosk.back.addEventListener("click", exitKioskMode);
+}
+if (kiosk.info) {
+  kiosk.info.addEventListener("click", () => {
+    const isOn = document.body.classList.toggle("kiosk-mode--info");
+    kiosk.info.setAttribute("aria-pressed", String(isOn));
+  });
+}
+
+function closeMenuDropdown() {
+  if (!menuToggle || !menuDropdown) return;
+  menuToggle.setAttribute("aria-expanded", "false");
+  menuDropdown.hidden = true;
+  menuRoot && menuRoot.classList.remove("is-open");
+}
+
+function openMenuDropdown() {
+  if (!menuToggle || !menuDropdown) return;
+  menuToggle.setAttribute("aria-expanded", "true");
+  menuDropdown.hidden = false;
+  menuRoot && menuRoot.classList.add("is-open");
+}
+
+if (menuToggle && menuDropdown) {
+  menuToggle.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (menuDropdown.hidden) {
+      openMenuDropdown();
+    } else {
+      closeMenuDropdown();
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!menuRoot) return;
+    if (!menuRoot.contains(event.target)) {
+      closeMenuDropdown();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenuDropdown();
+    }
+  });
+}
+
+function openModal(modal) {
+  if (!modal) return;
+  modal.classList.add("is-open");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+
+function closeModal(modal) {
+  if (!modal) return;
+  modal.classList.remove("is-open");
+  modal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+}
+
+function closeAllModals() {
+  allModals.forEach((modal) => closeModal(modal));
+}
+
+allModals.forEach((modal) => {
+  modal.addEventListener("click", (event) => {
+    if (event.target.matches("[data-close-modal]")) {
+      closeModal(modal);
+    }
+  });
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeAllModals();
+  }
+});
+
+async function loadAdminSpecialties() {
+  if (!specialtySelect || isFileMode) return;
+  specialtySelect.innerHTML = "<option>Загрузка…</option>";
+  try {
+    const response = await fetch("/api/admin/specialties", {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error("Не удалось загрузить специальности.");
+    const items = await response.json();
+    specialtySelect.innerHTML = items
+      .map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.code)} — ${escapeHtml(item.title)}</option>`)
+      .join("");
+  } catch (error) {
+    specialtySelect.innerHTML = "";
+    if (formStatus) {
+      formStatus.textContent = "Не удалось получить список специальностей. Проверьте сервер.";
+      formStatus.classList.add("is-error");
+    }
+  }
+}
+
+function showAdminStep(step) {
+  [adminGateStep, adminFormStep, adminResultStep].forEach((node) => {
+    if (!node) return;
+    node.hidden = node.dataset.step !== step;
+  });
+}
+
+function resetAdminModal() {
+  adminUnlockedPassword = "";
+  if (adminGatePassword) adminGatePassword.value = "";
+  if (adminGateStatus) {
+    adminGateStatus.textContent = "";
+    adminGateStatus.classList.remove("is-error");
+  }
+  if (formStatus) {
+    formStatus.textContent = "";
+    formStatus.classList.remove("is-error");
+  }
+  if (equipmentForm) equipmentForm.reset();
+  showAdminStep("gate");
+}
+
+async function attemptAdminUnlock(password) {
+  if (!password) return false;
+  if (isFileMode) return false;
+  try {
+    const response = await fetch("/api/admin/auth", {
+      method: "POST",
+      headers: { "x-admin-password": password },
+    });
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+}
+
+if (adminGateForm) {
+  adminGateForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const value = String(adminGatePassword.value || "").trim();
+    if (!value) return;
+    adminGateStatus.textContent = "Проверяем пароль…";
+    adminGateStatus.classList.remove("is-error");
+    const ok = await attemptAdminUnlock(value);
+    if (!ok) {
+      adminGateStatus.textContent = "Неверный пароль администратора.";
+      adminGateStatus.classList.add("is-error");
+      return;
+    }
+    adminUnlockedPassword = value;
+    adminGateStatus.textContent = "";
+    showAdminStep("form");
+    await loadAdminSpecialties();
+  });
+}
+
+function drawQrOnCanvas(text, canvas) {
+  if (!canvas || typeof window.qrcode !== "function") return;
+  if (window.qrcode.stringToBytesFuncs && window.qrcode.stringToBytesFuncs["UTF-8"]) {
+    window.qrcode.stringToBytes = window.qrcode.stringToBytesFuncs["UTF-8"];
+  }
+  const qr = window.qrcode(0, "M");
+  qr.addData(text);
+  qr.make();
+  const moduleCount = qr.getModuleCount();
+  const margin = 16;
+  const size = canvas.width;
+  const cellSize = Math.floor((size - margin * 2) / moduleCount);
+  const qrSize = cellSize * moduleCount;
+  const offset = Math.floor((size - qrSize) / 2);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = "#020617";
+  for (let row = 0; row < moduleCount; row += 1) {
+    for (let col = 0; col < moduleCount; col += 1) {
+      if (qr.isDark(row, col)) {
+        ctx.fillRect(offset + col * cellSize, offset + row * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+}
+
+if (equipmentForm) {
+  equipmentForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!adminUnlockedPassword) {
+      showAdminStep("gate");
+      return;
+    }
+    formStatus.textContent = "Сохраняем модель…";
+    formStatus.classList.remove("is-error");
+
+    const formData = new FormData(equipmentForm);
+    try {
+      const response = await fetch("/api/admin/equipment", {
+        method: "POST",
+        headers: { "x-admin-password": adminUnlockedPassword },
+        body: formData,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Ошибка сохранения модели.");
+      }
+
+      const shareUrl = buildEquipmentShareUrl(data.id);
+      drawQrOnCanvas(shareUrl, adminQrCanvas);
+      adminResultTitle.textContent = `${data.title} — модель добавлена`;
+      adminQrCaption.textContent = "Распечатайте QR-код и разместите его на учебном оборудовании.";
+      adminQrLink.href = shareUrl;
+      adminQrLink.textContent = shareUrl;
+      showAdminStep("result");
+
+      try {
+        await loadData();
+        renderSpecialties();
+        render();
+      } catch (_error) {
+        // catalog refresh is best-effort
+      }
+    } catch (error) {
+      formStatus.textContent = error.message || "Не удалось сохранить модель.";
+      formStatus.classList.add("is-error");
+    }
+  });
+}
+
+if (adminPrintQr) {
+  adminPrintQr.addEventListener("click", () => {
+    window.print();
+  });
+}
+
+if (adminAddAnother) {
+  adminAddAnother.addEventListener("click", () => {
+    if (equipmentForm) equipmentForm.reset();
+    formStatus.textContent = "";
+    formStatus.classList.remove("is-error");
+    showAdminStep("form");
+  });
+}
+
+async function loadFaqArticles() {
+  if (!faqList || faqLoaded || isFileMode) return;
+  try {
+    const response = await fetch("/api/help-articles");
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const items = await response.json();
+    if (!Array.isArray(items) || items.length === 0) {
+      faqList.innerHTML = '<p class="faq-list__loading">Статьи пока не добавлены.</p>';
+      return;
+    }
+    faqList.innerHTML = items
+      .map(
+        (article) => `
+          <details class="faq-item">
+            <summary>${escapeHtml(article.title)}</summary>
+            <p>${escapeHtml(article.body)}</p>
+          </details>
+        `,
+      )
+      .join("");
+    faqLoaded = true;
+  } catch (error) {
+    faqList.innerHTML = '<p class="faq-list__loading">Не удалось загрузить статьи. Проверьте подключение к серверу.</p>';
+  }
+}
+
+document.querySelectorAll("[data-open-modal]").forEach((trigger) => {
+  trigger.addEventListener("click", async () => {
+    const target = trigger.getAttribute("data-open-modal");
+    closeMenuDropdown();
+    closeAllModals();
+
+    if (target === "admin") {
+      resetAdminModal();
+      openModal(adminModal);
+    } else if (target === "faq") {
+      openModal(document.querySelector("#faq-modal"));
+      await loadFaqArticles();
+    } else if (target === "about") {
+      openModal(document.querySelector("#about-modal"));
+    }
+  });
+});
+
 async function init() {
   try {
     setZoom(1);
@@ -590,6 +946,22 @@ async function init() {
           render();
         }
       }
+    }
+
+    if (isKioskRequested()) {
+      enterKioskMode();
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const initialModal = params.get("openModal");
+    if (initialModal === "admin") {
+      resetAdminModal();
+      openModal(adminModal);
+    } else if (initialModal === "faq") {
+      openModal(document.querySelector("#faq-modal"));
+      await loadFaqArticles();
+    } else if (initialModal === "about") {
+      openModal(document.querySelector("#about-modal"));
     }
   } catch (error) {
     specialtyGrid.innerHTML = '<p class="error-state">Не удалось загрузить каталог оборудования.</p>';
