@@ -364,6 +364,24 @@ a {
     var(--bg-soft);
 }
 
+.specialty-card.is-disabled,
+.specialty-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.specialty-card.is-disabled:hover,
+.specialty-card:disabled:hover {
+  transform: none;
+  border-color: var(--line);
+}
+
+.specialty-card.is-disabled p,
+.specialty-card:disabled p {
+  color: var(--warning);
+  font-weight: 800;
+}
+
 .specialty-card__code {
   display: inline-flex;
   margin-bottom: 34px;

@@ -52,6 +52,7 @@ const MODEL_CAMERA_RADIUS_MIN = 70;
 const MODEL_CAMERA_RADIUS_MAX = 320;
 const MODEL_CAMERA_RADIUS_DEFAULT = 165;
 const ADMIN_TOKEN_KEY = "adminToken";
+const ACTIVE_SPECIALTY_ID = "pd";
 
 function escapeHtml(value) {
   return String(value)
@@ -72,7 +73,15 @@ function allEquipment() {
 }
 
 function findSpecialty(id) {
-  return specialties.find((specialty) => specialty.id === id) || specialties[0];
+  return specialties.find((specialty) => specialty.id === id) || getDefaultSpecialty();
+}
+
+function getDefaultSpecialty() {
+  return specialties.find((specialty) => specialty.id === ACTIVE_SPECIALTY_ID) || specialties[0];
+}
+
+function isSpecialtyAvailable(specialtyId) {
+  return specialtyId === ACTIVE_SPECIALTY_ID;
 }
 
 function findEquipmentStrict(id) {
@@ -93,8 +102,8 @@ function findEquipment(id) {
   }
 
   return {
-    specialty: specialties[0],
-    equipment: specialties[0].equipment[0],
+    specialty: getDefaultSpecialty(),
+    equipment: getDefaultSpecialty().equipment[0],
   };
 }
 
@@ -180,15 +189,21 @@ function setModelCameraRadius(nextRadius) {
 
 function renderSpecialties() {
   specialtyGrid.innerHTML = specialties
-    .map(
-      (specialty) => `
-        <button class="specialty-card" type="button" data-specialty="${escapeHtml(specialty.id)}">
+    .map((specialty) => {
+      const available = isSpecialtyAvailable(specialty.id);
+      return `
+        <button
+          class="specialty-card${available ? "" : " is-disabled"}"
+          type="button"
+          data-specialty="${escapeHtml(specialty.id)}"
+          ${available ? "" : 'disabled aria-disabled="true"'}
+        >
           <span class="specialty-card__code">${escapeHtml(specialty.code)}</span>
           <h3>${escapeHtml(specialty.title)}</h3>
-          <p>${escapeHtml(specialty.description)}</p>
+          <p>${available ? escapeHtml(specialty.description) : "В разработке"}</p>
         </button>
-      `,
-    )
+      `;
+    })
     .join("");
 }
 
@@ -438,8 +453,9 @@ function initFromLocation() {
   const equipmentId = readEquipmentIdFromLocation();
 
   if (!equipmentId) {
-    activeSpecialtyId = specialties[0].id;
-    activeEquipmentId = specialties[0].equipment[0].id;
+    const specialty = getDefaultSpecialty();
+    activeSpecialtyId = specialty.id;
+    activeEquipmentId = specialty.equipment[0].id;
     activeEquipmentDetail = null;
     equipmentDetailError = false;
     return;
@@ -454,7 +470,7 @@ function initFromLocation() {
     return;
   }
 
-  activeSpecialtyId = specialties[0].id;
+  activeSpecialtyId = getDefaultSpecialty().id;
   activeEquipmentId = equipmentId;
   activeEquipmentDetail = null;
   equipmentDetailError = false;
@@ -723,6 +739,7 @@ async function loadData() {
 specialtyGrid.addEventListener("click", async (event) => {
   const card = event.target.closest("[data-specialty]");
   if (!card) return;
+  if (!isSpecialtyAvailable(card.dataset.specialty)) return;
 
   const specialty = findSpecialty(card.dataset.specialty);
   activeSpecialtyId = specialty.id;
