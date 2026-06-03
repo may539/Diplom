@@ -4,11 +4,80 @@
 
 ## Что реализовано
 
-- каталог специальностей (ОИБ, ПД, ЗЕМ) и 3D-моделей;
+- каталог специальностей и 3D-моделей;
 - сохранение данных в SQLite (`data/equipment.sqlite`);
 - основной сайт читает каталог через API `/api/specialties`;
-- админ-панель `/admin.html` для добавления новой модели;
-- после добавления сайт сразу генерирует QR-код и показывает его в модальном окне с кнопкой печати.
+- админ-панель `/admin.html` для загрузки GLB-моделей и добавления карточек;
+- QR-код создается только в админ-панели после добавления модели.
+
+## Запуск через Docker
+
+Основной сценарий для сервера:
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+После запуска сайт доступен по адресу:
+
+```text
+http://localhost:8080
+```
+
+Если нужно открыть сайт на другом порту, измените `HOST_PORT` в `.env`, например:
+
+```env
+HOST_PORT=80
+```
+
+### Постоянные данные Docker
+
+`docker-compose.yml` использует именованные Docker volumes:
+
+- `diplom-data` → `/app/data` — SQLite-база (`equipment.sqlite`) и исходный seed-файл;
+- `diplom-models` → `/app/public/models` — загруженные `.glb` модели;
+- `diplom-logs` → `/app/logs` — журнал сканирования QR.
+
+Эти данные не удаляются при пересоздании контейнера командой `docker compose up -d --build`.
+Если нужно полностью сбросить базу и загруженные модели, используйте:
+
+```bash
+docker compose down -v
+```
+
+### Переменные окружения
+
+Настройки задаются в `.env`:
+
+```env
+HOST_PORT=8080
+ADMIN_PASSWORD=admin123
+PUBLIC_BASE_URL=
+```
+
+Для production обязательно замените `ADMIN_PASSWORD`. Более безопасный вариант —
+использовать bcrypt-хэш:
+
+```bash
+node -e "const bcrypt=require('bcrypt'); bcrypt.hash('strong-password', 10).then(console.log)"
+```
+
+Затем укажите результат в `.env`:
+
+```env
+ADMIN_PASSWORD_HASH=$2b$10$...
+```
+
+Если задан `ADMIN_PASSWORD_HASH`, он имеет приоритет над `ADMIN_PASSWORD`.
+
+Полезные команды:
+
+```bash
+docker compose logs -f
+docker compose restart
+docker compose down
+```
 
 ## Локальный запуск
 
@@ -30,13 +99,8 @@ http://localhost:8080
 
 ## Админ-доступ
 
-По умолчанию пароль админа: `admin123`.
+На главной странице откройте burger-меню и нажмите **Загрузить модель**.
+После ввода пароля откроется админ-панель с формой загрузки модели.
 
-Для production задайте переменную окружения:
-
-```bash
-ADMIN_PASSWORD="strong-password" npm start
-```
-
-Админка отправляет пароль в заголовке `x-admin-password` для API-запроса
-`POST /api/admin/equipment`.
+По умолчанию пароль: `admin123`. Для production задайте `ADMIN_PASSWORD`
+или `ADMIN_PASSWORD_HASH` в `.env`.

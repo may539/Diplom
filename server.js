@@ -17,9 +17,10 @@ const port = Number(process.env.PORT || 8080);
 const host = process.env.HOST || "0.0.0.0";
 const rootDir = __dirname;
 const modelsPublicDir = path.join(rootDir, "public", "models");
-/** Bcrypt hash for default password "admin123". Override with ADMIN_PASSWORD_HASH. */
+/** Bcrypt hash for default password "admin123". Prefer ADMIN_PASSWORD_HASH in production. */
 const DEFAULT_ADMIN_PASSWORD_HASH = "$2b$10$/x0xBA8DU1ssl3WJePlLwuxS0.MEXRx/oLoNB3mT9cGYaZ5q.1JcO";
 const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH || DEFAULT_ADMIN_PASSWORD_HASH;
+const adminPasswordPlain = process.env.ADMIN_PASSWORD || "";
 const ADMIN_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 const adminSessions = new Map();
 const dataJsonPath = path.join(rootDir, "data", "equipment.json");
@@ -561,7 +562,13 @@ app.get("/api/help-articles/:slug", async (req, res, next) => {
 app.post("/api/admin/login", async (req, res, next) => {
   try {
     const password = String((req.body && req.body.password) || "");
-    const ok = password.length > 0 && (await bcrypt.compare(password, adminPasswordHash));
+    const ok =
+      password.length > 0 &&
+      (process.env.ADMIN_PASSWORD_HASH
+        ? await bcrypt.compare(password, adminPasswordHash)
+        : adminPasswordPlain
+          ? password === adminPasswordPlain
+          : await bcrypt.compare(password, adminPasswordHash));
     if (!ok) {
       res.status(401).json({ error: "Неверный пароль." });
       return;
