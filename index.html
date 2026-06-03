@@ -35,7 +35,7 @@
             <span class="menu-toggle__bar"></span>
           </button>
           <div class="menu-dropdown" id="menu-dropdown" hidden>
-            <a class="menu-item" href="/admin.html">Загрузить модель</a>
+            <button class="menu-item" type="button" data-open-modal="admin-login">Загрузить модель</button>
             <button class="menu-item" type="button" data-open-modal="faq">База знаний (FAQ)</button>
             <button class="menu-item" type="button" data-open-modal="about">О нас</button>
           </div>
@@ -115,6 +115,9 @@
                   id="equipment-model-viewer"
                   class="equipment-model-viewer"
                   camera-controls
+                  auto-rotate
+                  auto-rotate-delay="0"
+                  rotation-per-second="30deg"
                   touch-action="pan-y"
                   shadow-intensity="1"
                   exposure="1"
@@ -228,6 +231,24 @@
         <img id="qr-image" src="" alt="QR-код для выбранного оборудования" />
         <p id="qr-caption"></p>
         <a class="qr-link" id="qr-direct-link" href="#">Открыть ссылку</a>
+      </div>
+    </div>
+
+    <div class="modal" id="admin-login-modal" aria-hidden="true" role="dialog" aria-labelledby="admin-login-modal-title">
+      <div class="modal__overlay" data-close-modal></div>
+      <div class="modal__content modal__content--wide admin-login-modal">
+        <button class="modal__close" type="button" data-close-modal aria-label="Закрыть">×</button>
+        <p class="eyebrow">Админ-панель</p>
+        <h2 id="admin-login-modal-title">Загрузить модель</h2>
+        <p>Введите мастер-пароль администратора, чтобы открыть форму.</p>
+        <form id="admin-login-modal-form" class="admin-form">
+          <label>
+            Пароль администратора
+            <input id="admin-login-modal-password" type="password" autocomplete="current-password" required />
+          </label>
+          <button class="button button--primary" type="submit">Открыть форму</button>
+          <p id="admin-login-modal-status" class="admin-status" role="status" aria-live="polite"></p>
+        </form>
       </div>
     </div>
 

@@ -925,13 +925,18 @@ model-viewer.equipment-model-viewer {
 }
 
 .viewer-info__actions .button {
-  flex: 1 1 132px;
-  min-width: 0;
+  flex: 1 1 180px;
+  min-width: 180px;
   padding-right: 16px;
   padding-left: 16px;
   line-height: 1.15;
   text-align: center;
   white-space: normal;
+}
+
+.viewer-info__actions #model-link {
+  flex-basis: 100%;
+  min-height: 52px;
 }
 
 .viewer-info h3 {
@@ -1098,6 +1103,26 @@ model-viewer.equipment-model-viewer {
 
 .modal__content--wide {
   width: min(720px, 100%);
+}
+
+.admin-login-modal {
+  text-align: left;
+}
+
+.admin-login-modal h2 {
+  margin: 0 0 14px;
+}
+
+.admin-login-modal p {
+  color: var(--text);
+}
+
+.admin-login-modal .admin-form {
+  margin-top: 18px;
+}
+
+.admin-login-modal .button {
+  width: 100%;
 }
 
 .modal__close {

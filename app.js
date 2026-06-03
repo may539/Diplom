@@ -27,6 +27,9 @@ const menuToggle = document.querySelector("#menu-toggle");
 const menuDropdown = document.querySelector("#menu-dropdown");
 const allModals = document.querySelectorAll(".modal");
 const faqList = document.querySelector("#faq-list");
+const adminLoginModalForm = document.querySelector("#admin-login-modal-form");
+const adminLoginModalPassword = document.querySelector("#admin-login-modal-password");
+const adminLoginModalStatus = document.querySelector("#admin-login-modal-status");
 const isFileMode = window.location.protocol === "file:";
 
 let specialties = [];
@@ -48,6 +51,7 @@ const ZOOM_MAX = 1.8;
 const MODEL_CAMERA_RADIUS_MIN = 70;
 const MODEL_CAMERA_RADIUS_MAX = 320;
 const MODEL_CAMERA_RADIUS_DEFAULT = 165;
+const ADMIN_TOKEN_KEY = "adminToken";
 
 function escapeHtml(value) {
   return String(value)
@@ -363,6 +367,14 @@ function syncAutoRotate() {
   wireframeToggle.textContent = isAutoRotate ? "Автопрокрутка: вкл" : "Автопрокрутка: выкл";
 }
 
+function storeAdminToken(token) {
+  if (token) {
+    sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+  } else {
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+  }
+}
+
 function renderEquipmentNotFound() {
   equipmentType.textContent = "";
   equipmentTitle.textContent = "Объект не найден";
@@ -618,6 +630,49 @@ async function loadFaqArticles() {
   }
 }
 
+async function submitAdminLogin(event) {
+  event.preventDefault();
+
+  if (!adminLoginModalPassword || !adminLoginModalStatus) return;
+  const password = adminLoginModalPassword.value.trim();
+  if (!password) return;
+
+  adminLoginModalStatus.textContent = "Проверяем пароль...";
+  adminLoginModalStatus.classList.remove("is-error");
+
+  if (isFileMode) {
+    adminLoginModalStatus.textContent = "Админ-панель доступна после запуска сервера через npm start.";
+    adminLoginModalStatus.classList.add("is-error");
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      adminLoginModalStatus.textContent = data.error || "Неверный пароль администратора.";
+      adminLoginModalStatus.classList.add("is-error");
+      return;
+    }
+
+    storeAdminToken(data.token);
+    adminLoginModalStatus.textContent = "Вход выполнен. Открываем форму...";
+    window.location.assign("/admin.html#admin-form");
+  } catch (error) {
+    adminLoginModalStatus.textContent = "Не удалось подключиться к серверу.";
+    adminLoginModalStatus.classList.add("is-error");
+  }
+}
+
+if (adminLoginModalForm) {
+  adminLoginModalForm.addEventListener("submit", submitAdminLogin);
+}
+
 function applyInitialViewOptions() {
   const searchParams = new URLSearchParams(window.location.search);
   const scrollToViewer = () => {
@@ -834,6 +889,8 @@ localViewer.addEventListener(
   "wheel",
   (event) => {
     if (event.target.closest("model-viewer")) {
+      event.preventDefault();
+      setModelCameraRadius(modelCameraRadius + event.deltaY * 0.08);
       return;
     }
 
