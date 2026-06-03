@@ -1,4 +1,3 @@
-const loginForm = document.querySelector("#admin-login-form");
 const equipmentForm = document.querySelector("#equipment-form");
 const specialtySelect = document.querySelector("#specialty-select");
 const statusText = document.querySelector("#form-status");
@@ -38,6 +37,12 @@ function showToast(message, variant = "info") {
 function setStatus(text, isError = false) {
   statusText.textContent = text;
   statusText.classList.toggle("is-error", isError);
+}
+
+function setFormDisabled(isDisabled) {
+  equipmentForm.querySelectorAll("input, textarea, select, button").forEach((control) => {
+    control.disabled = isDisabled;
+  });
 }
 
 function openModal() {
@@ -94,7 +99,8 @@ async function loadSpecialties() {
     if (response.status === 401) {
       setAdminToken("");
       specialtySelect.innerHTML = "";
-      setStatus("Войдите с паролем администратора.", true);
+      setFormDisabled(true);
+      setStatus("Сессия истекла. Вернитесь на главную страницу и откройте «Загрузить модель» заново.", true);
       showToast("Ошибка авторизации", "error");
       return;
     }
@@ -107,40 +113,14 @@ async function loadSpecialties() {
     specialtySelect.innerHTML = specialties
       .map((item) => `<option value="${item.id}">${item.code} — ${item.title}</option>`)
       .join("");
+    setFormDisabled(false);
     setStatus("");
   } catch (error) {
     specialtySelect.innerHTML = "";
+    setFormDisabled(true);
     setStatus("Ошибка загрузки специальностей. Проверьте, что сервер запущен.", true);
   }
 }
-
-loginForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const formData = new FormData(loginForm);
-  const password = String(formData.get("loginPassword") || "");
-
-  try {
-    const response = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ password }),
-    });
-
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      showToast("Ошибка авторизации", "error");
-      setStatus(data.error || "Неверный пароль.", true);
-      return;
-    }
-
-    setAdminToken(data.token);
-    setStatus("");
-    await loadSpecialties();
-    showToast("Вход выполнен", "success");
-  } catch {
-    showToast("Ошибка авторизации", "error");
-  }
-});
 
 function parseFeatures(value) {
   return value
@@ -232,5 +212,6 @@ if (getAdminToken()) {
   loadSpecialties();
 } else {
   specialtySelect.innerHTML = "";
-  setStatus("Сначала войдите с паролем администратора.", true);
+  setFormDisabled(true);
+  setStatus("Откройте админ-панель через кнопку «Загрузить модель» на главной странице и введите пароль.", true);
 }

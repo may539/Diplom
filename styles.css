@@ -929,9 +929,11 @@ model-viewer.equipment-model-viewer {
 
 .viewer-info {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   justify-content: center;
   padding: 34px;
+  overflow-wrap: anywhere;
 }
 
 .viewer-info__actions {
@@ -956,6 +958,9 @@ model-viewer.equipment-model-viewer {
 .viewer-info h3 {
   font-size: clamp(1.8rem, 3vw, 3rem);
   letter-spacing: -0.04em;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .feature-list {
@@ -1239,6 +1244,14 @@ model-viewer.equipment-model-viewer {
 
 .admin-intro {
   max-width: 860px;
+}
+
+.admin-intro h1 {
+  margin: 0;
+  max-width: 920px;
+  font-size: clamp(2.4rem, 5.8vw, 5.2rem);
+  letter-spacing: -0.055em;
+  line-height: 0.98;
 }
 
 .admin-card {
