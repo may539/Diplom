@@ -10,7 +10,6 @@
     <title>3D визуализация учебного оборудования</title>
     <link rel="stylesheet" href="styles.css" />
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
     <script src="data/equipment-data.js"></script>
     <script defer src="app.js"></script>
   </head>
@@ -48,8 +47,8 @@
           <h1>Интерактивная трехмерная визуализация учебного оборудования</h1>
           <p class="hero__lead">
             Сайт помогает выбрать специальность, открыть карточку оборудования и
-            рассмотреть учебную 3D-модель прямо в браузере. QR-код можно
-            разместить на реальном стенде, чтобы быстро открыть нужную модель.
+            рассмотреть учебную 3D-модель прямо в браузере. QR-коды для стендов
+            формируются в админ-панели после добавления модели.
           </p>
           <div class="hero__actions">
             <a class="button button--primary" href="#specialties">Выбрать специальность</a>
@@ -69,8 +68,8 @@
           </div>
           <div class="panel-card">
             <span class="panel-card__icon">03</span>
-            <h2>QR-доступ</h2>
-            <p>Ссылка на выбранную карточку оборудования для сканирования.</p>
+            <h2>Админ-доступ</h2>
+            <p>Загрузка моделей и выпуск QR-кодов доступны только администратору.</p>
           </div>
         </aside>
       </div>
@@ -172,9 +171,6 @@
                 <button class="button button--ghost" id="wireframe-toggle" type="button" aria-pressed="true">
                   Автопрокрутка: вкл
                 </button>
-                <button class="button button--primary" id="qr-open" type="button">
-                  Показать QR-код
-                </button>
                 <a class="button button--ghost" id="model-link" href="#" target="_blank" rel="noreferrer">
                   Открыть GLB-источник
                 </a>
@@ -182,21 +178,6 @@
             </div>
           </article>
         </div>
-      </section>
-
-      <section class="section qr-section" id="qr" aria-labelledby="qr-title">
-        <div class="qr-section__content">
-          <p class="eyebrow">Шаг 3</p>
-          <h2 id="qr-title">QR-код для реального оборудования</h2>
-          <p>
-            На учебный стенд можно наклеить QR-код. После сканирования студент
-            открывает страницу на сервере учебного заведения с уже выбранной
-            3D-моделью и описанием объекта.
-          </p>
-        </div>
-        <button class="button button--primary" id="qr-open-secondary" type="button">
-          Сгенерировать QR для текущей модели
-        </button>
       </section>
     </main>
 
@@ -221,18 +202,6 @@
         <button class="footer-link" type="button" data-open-modal="privacy">Политика конфиденциальности</button>
       </div>
     </footer>
-
-    <div class="modal" id="qr-modal" aria-hidden="true" role="dialog" aria-labelledby="qr-modal-title">
-      <div class="modal__overlay" data-close-modal></div>
-      <div class="modal__content">
-        <button class="modal__close" type="button" data-close-modal aria-label="Закрыть">×</button>
-        <p class="eyebrow">QR-доступ</p>
-        <h2 id="qr-modal-title">Ссылка на модель</h2>
-        <img id="qr-image" src="" alt="QR-код для выбранного оборудования" />
-        <p id="qr-caption"></p>
-        <a class="qr-link" id="qr-direct-link" href="#">Открыть ссылку</a>
-      </div>
-    </div>
 
     <div class="modal" id="admin-login-modal" aria-hidden="true" role="dialog" aria-labelledby="admin-login-modal-title">
       <div class="modal__overlay" data-close-modal></div>
@@ -265,7 +234,7 @@
         <ul class="about-list">
           <li>Данные оборудования хранятся в SQLite.</li>
           <li>3D-модели открываются через &lt;model-viewer&gt;.</li>
-          <li>QR-ссылка формируется от текущего адреса сайта.</li>
+          <li>QR-коды формируются в админ-панели для печати и размещения на стендах.</li>
         </ul>
       </div>
     </div>

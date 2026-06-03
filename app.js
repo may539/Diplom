@@ -17,11 +17,6 @@ const wireframeToggle = document.querySelector("#wireframe-toggle");
 const zoomOutButton = document.querySelector("#zoom-out");
 const zoomInButton = document.querySelector("#zoom-in");
 const zoomResetButton = document.querySelector("#zoom-reset");
-const qrModal = document.querySelector("#qr-modal");
-const qrImage = document.querySelector("#qr-image");
-const qrCaption = document.querySelector("#qr-caption");
-const qrDirectLink = document.querySelector("#qr-direct-link");
-const qrButtons = document.querySelectorAll("#qr-open, #qr-open-secondary");
 const menuRoot = document.querySelector("#main-menu");
 const menuToggle = document.querySelector("#menu-toggle");
 const menuDropdown = document.querySelector("#menu-dropdown");
@@ -105,13 +100,6 @@ function findEquipment(id) {
     specialty: getDefaultSpecialty(),
     equipment: getDefaultSpecialty().equipment[0],
   };
-}
-
-function buildEquipmentQrUrl(equipmentId) {
-  const url = new URL("/", window.location.origin);
-  url.searchParams.set("id", equipmentId);
-  url.searchParams.set("scan", "1");
-  return url.href;
 }
 
 function readEquipmentIdFromLocation() {
@@ -508,52 +496,6 @@ async function refreshActiveEquipmentFromApi() {
   }
 }
 
-async function openQrModal() {
-  const equipment =
-    activeEquipmentDetail && activeEquipmentDetail.id === activeEquipmentId
-      ? activeEquipmentDetail
-      : findEquipment(activeEquipmentId).equipment;
-
-  qrCaption.textContent = "Генерация QR-кода...";
-  qrImage.hidden = false;
-  qrImage.removeAttribute("src");
-  qrDirectLink.removeAttribute("href");
-  qrDirectLink.textContent = "";
-  openModal(qrModal);
-
-  if (isFileMode) {
-    qrImage.hidden = true;
-    qrCaption.textContent =
-      "Для корректного QR-кода запустите сервер командой npm start и откройте http://localhost:8080.";
-    qrDirectLink.href = "http://localhost:8080";
-    qrDirectLink.textContent = "Открыть серверную версию";
-    return;
-  }
-
-  const url = buildEquipmentQrUrl(equipment.id);
-  const QRCodeGlobal = window.QRCode;
-
-  if (!QRCodeGlobal || typeof QRCodeGlobal.toDataURL !== "function") {
-    qrCaption.textContent = "Не удалось загрузить библиотеку QR-кода.";
-    return;
-  }
-
-  try {
-    const imageDataUrl = await QRCodeGlobal.toDataURL(url, {
-      errorCorrectionLevel: "M",
-      margin: 2,
-      width: 240,
-    });
-
-    qrImage.src = imageDataUrl;
-    qrCaption.textContent = `${equipment.title}: отсканируйте код, чтобы открыть эту 3D-модель.`;
-    qrDirectLink.href = url;
-    qrDirectLink.textContent = url;
-  } catch (error) {
-    qrCaption.textContent = "Не удалось сформировать QR-код.";
-  }
-}
-
 function isMenuOpen() {
   return Boolean(menuRoot?.classList.contains("is-open"));
 }
@@ -598,10 +540,6 @@ function closeModal(modal) {
 
 function closeAllModals() {
   allModals.forEach((modal) => closeModal(modal));
-}
-
-function closeQrModal() {
-  closeModal(qrModal);
 }
 
 async function loadFaqArticles() {
@@ -705,9 +643,6 @@ function applyInitialViewOptions() {
     window.setTimeout(scrollToViewer, 250);
   }
 
-  if (searchParams.get("qr") === "1") {
-    openQrModal();
-  }
 }
 
 async function loadData() {
@@ -783,8 +718,6 @@ wireframeToggle.addEventListener("click", () => {
   isAutoRotate = !isAutoRotate;
   syncAutoRotate();
 });
-
-qrButtons.forEach((button) => button.addEventListener("click", openQrModal));
 
 if (menuToggle && menuDropdown && menuRoot) {
   menuToggle.addEventListener("click", (event) => {

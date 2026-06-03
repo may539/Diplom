@@ -500,6 +500,10 @@ app.get("/api/equipment/:equipmentId", validateEquipmentIdParam, async (req, res
 });
 
 app.get("/api/qr/:equipmentId", validateEquipmentIdParam, async (req, res, next) => {
+  if (!assertAdmin(req, res)) {
+    return;
+  }
+
   try {
     const equipment = await findEquipment(req.params.equipmentId);
     if (!equipment) {

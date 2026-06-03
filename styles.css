@@ -198,8 +198,7 @@ a {
 }
 
 .hero__content h1,
-.section__header h2,
-.qr-section h2 {
+.section__header h2 {
   margin: 0;
   letter-spacing: -0.055em;
   line-height: 0.98;
@@ -213,7 +212,6 @@ a {
 
 .hero__lead,
 .section__header p,
-.qr-section p,
 .viewer-info p {
   color: var(--muted);
   line-height: 1.7;
@@ -275,8 +273,7 @@ a {
 
 .hero__panel,
 .viewer-card,
-.equipment-list,
-.qr-section {
+.equipment-list {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-card);
@@ -324,8 +321,7 @@ a {
   margin-bottom: 26px;
 }
 
-.section__header h2,
-.qr-section h2 {
+.section__header h2 {
   font-size: clamp(2rem, 4.5vw, 4rem);
 }
 
@@ -1010,19 +1006,6 @@ model-viewer.equipment-model-viewer {
   background: rgba(248, 113, 113, 0.08);
 }
 
-.qr-section {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 64px;
-  padding: 34px;
-}
-
-.qr-section__content {
-  max-width: 720px;
-}
-
 .footer {
   padding: 28px 0 40px;
   color: var(--muted);
@@ -1403,7 +1386,6 @@ body.modal-open {
 
 body.focus-viewer .hero,
 body.focus-viewer #specialties,
-body.focus-viewer .qr-section,
 body.focus-viewer .footer {
   display: none;
 }
@@ -1435,8 +1417,7 @@ body.focus-viewer .section--viewer .section__header {
 
 @media (max-width: 680px) {
   .hero__actions,
-  .viewer-info__actions,
-  .qr-section {
+  .viewer-info__actions {
     align-items: stretch;
     flex-direction: column;
   }
@@ -1459,8 +1440,7 @@ body.focus-viewer .section--viewer .section__header {
     right: 0;
   }
 
-  .viewer-info,
-  .qr-section {
+  .viewer-info {
     padding: 24px;
   }
 
