@@ -228,6 +228,53 @@ async function initDb() {
     await run("ALTER TABLE equipment ADD COLUMN hotspots_json TEXT NOT NULL DEFAULT '[]'");
   }
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS help_articles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT UNIQUE NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  const helpCountRow = await get("SELECT COUNT(*) AS count FROM help_articles");
+  if ((helpCountRow?.count || 0) === 0) {
+    const seedArticles = [
+      {
+        slug: "qr-mode",
+        title: "Как работает QR-код?",
+        body:
+          "QR-код открывает эту же страницу с параметром id выбранного оборудования. " +
+          "Ссылка строится от текущего адреса сайта, поэтому подходит для localhost, IP виртуальной машины и домена колледжа.",
+        sort_order: 1,
+      },
+      {
+        slug: "add-model",
+        title: "Как добавить новую 3D-модель?",
+        body:
+          "Откройте админ-панель, войдите по паролю, выберите специальность и заполните карточку. " +
+          "Можно указать ссылку на GLB или загрузить файл .glb на сервер.",
+        sort_order: 2,
+      },
+      {
+        slug: "supported-formats",
+        title: "Поддерживаемые форматы",
+        body:
+          "Для просмотра используются GLB-модели. Чем меньше размер файла, тем быстрее модель откроется на мобильных устройствах.",
+        sort_order: 3,
+      },
+    ];
+
+    for (const article of seedArticles) {
+      await run(
+        "INSERT INTO help_articles (slug, title, body, sort_order) VALUES (?, ?, ?, ?)",
+        [article.slug, article.title, article.body, article.sort_order],
+      );
+    }
+  }
+
   const seedSpecialties = readJsonSeed();
   const seedEquipment = seedSpecialties.flatMap((specialty) => specialty.equipment || []);
   for (const equipment of seedEquipment) {
@@ -473,6 +520,35 @@ app.get("/api/qr/:equipmentId", validateEquipmentIdParam, async (req, res, next)
       url,
       imageDataUrl,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/help-articles", async (_req, res, next) => {
+  try {
+    const rows = await all(
+      "SELECT id, slug, title, body, sort_order FROM help_articles ORDER BY sort_order ASC, id ASC",
+    );
+    res.json(rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/help-articles/:slug", async (req, res, next) => {
+  try {
+    const row = await get(
+      "SELECT id, slug, title, body, sort_order FROM help_articles WHERE slug = ?",
+      [req.params.slug],
+    );
+
+    if (!row) {
+      res.status(404).json({ error: "Статья не найдена." });
+      return;
+    }
+
+    res.json(row);
   } catch (error) {
     next(error);
   }

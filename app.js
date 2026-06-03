@@ -26,6 +26,7 @@ const menuRoot = document.querySelector("#main-menu");
 const menuToggle = document.querySelector("#menu-toggle");
 const menuDropdown = document.querySelector("#menu-dropdown");
 const allModals = document.querySelectorAll(".modal");
+const faqList = document.querySelector("#faq-list");
 const isFileMode = window.location.protocol === "file:";
 
 let specialties = [];
@@ -41,6 +42,7 @@ let lastPointer = { x: 0, y: 0 };
 let rotation = { x: -22, y: 38 };
 let zoom = 1;
 let modelCameraRadius = 165;
+let faqLoaded = false;
 const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.8;
 const MODEL_CAMERA_RADIUS_MIN = 70;
@@ -574,6 +576,48 @@ function closeQrModal() {
   closeModal(qrModal);
 }
 
+async function loadFaqArticles() {
+  if (!faqList || faqLoaded) return;
+
+  if (isFileMode) {
+    faqList.innerHTML = '<p class="faq-list__loading">FAQ доступен после запуска сервера через npm start.</p>';
+    faqLoaded = true;
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/help-articles", {
+      headers: { Accept: "application/json" },
+    });
+
+    if (!response.ok) {
+      throw new Error("FAQ API request failed");
+    }
+
+    const articles = await response.json();
+    if (!Array.isArray(articles) || articles.length === 0) {
+      faqList.innerHTML = '<p class="faq-list__loading">Справочные статьи пока не добавлены.</p>';
+      faqLoaded = true;
+      return;
+    }
+
+    faqList.innerHTML = articles
+      .map(
+        (article) => `
+          <details class="faq-item">
+            <summary>${escapeHtml(article.title)}</summary>
+            <p>${escapeHtml(article.body)}</p>
+          </details>
+        `,
+      )
+      .join("");
+    faqLoaded = true;
+  } catch (error) {
+    faqList.innerHTML =
+      '<p class="faq-list__loading">Не удалось загрузить FAQ. Проверьте запуск Node.js сервера.</p>';
+  }
+}
+
 function applyInitialViewOptions() {
   const searchParams = new URLSearchParams(window.location.search);
   const scrollToViewer = () => {
@@ -687,11 +731,15 @@ document.querySelectorAll("[data-menu-close]").forEach((trigger) => {
 });
 
 document.querySelectorAll("[data-open-modal]").forEach((trigger) => {
-  trigger.addEventListener("click", () => {
+  trigger.addEventListener("click", async () => {
     const modal = document.querySelector(`#${trigger.dataset.openModal}-modal`);
     closeMenuDropdown();
     closeAllModals();
     openModal(modal);
+
+    if (trigger.dataset.openModal === "faq") {
+      await loadFaqArticles();
+    }
   });
 });
 

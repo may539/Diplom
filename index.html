@@ -45,6 +45,7 @@
             <a class="menu-item" href="#viewer" data-menu-close>3D модель</a>
             <a class="menu-item" href="#qr" data-menu-close>QR-код</a>
             <a class="menu-item" href="/admin.html">Админ-панель</a>
+            <button class="menu-item" type="button" data-open-modal="faq">FAQ</button>
             <button class="menu-item" type="button" data-open-modal="about">О проекте</button>
             <button class="menu-item" type="button" data-open-modal="privacy">Политика конфиденциальности</button>
           </div>
@@ -209,7 +210,6 @@
     <footer class="footer">
       <div class="footer__inner">
         <p class="footer__copy">3D-визуализация учебного оборудования</p>
-        <p class="footer__note">Подходит для размещения на Linux-сервере учебного заведения.</p>
         <a
           class="footer-github"
           href="https://github.com/may539/Diplom"
@@ -256,6 +256,18 @@
           <li>3D-модели открываются через &lt;model-viewer&gt;.</li>
           <li>QR-ссылка формируется от текущего адреса сайта.</li>
         </ul>
+      </div>
+    </div>
+
+    <div class="modal" id="faq-modal" aria-hidden="true" role="dialog" aria-labelledby="faq-modal-title">
+      <div class="modal__overlay" data-close-modal></div>
+      <div class="modal__content modal__content--wide">
+        <button class="modal__close" type="button" data-close-modal aria-label="Закрыть">×</button>
+        <p class="eyebrow">База знаний</p>
+        <h2 id="faq-modal-title">Справочные статьи</h2>
+        <div id="faq-list" class="faq-list" aria-live="polite">
+          <p class="faq-list__loading">Загрузка статей...</p>
+        </div>
       </div>
     </div>
 
