@@ -52,7 +52,7 @@ a {
 }
 
 .hero {
-  padding: 24px 0 72px;
+  padding: 16px 0 72px;
 }
 
 .topbar {
@@ -60,7 +60,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 72px;
+  margin-bottom: 58px;
 }
 
 .brand,
@@ -79,13 +79,14 @@ a {
 
 .brand__mark {
   display: grid;
-  width: 46px;
-  height: 46px;
+  width: 38px;
+  height: 38px;
   place-items: center;
   border: 1px solid rgba(94, 234, 212, 0.45);
-  border-radius: 16px;
+  border-radius: 14px;
   background: linear-gradient(135deg, rgba(94, 234, 212, 0.22), rgba(34, 211, 238, 0.1));
   color: var(--accent);
+  font-size: 0.9rem;
   box-shadow: 0 0 38px rgba(94, 234, 212, 0.2);
 }
 
@@ -111,15 +112,15 @@ a {
 
 .menu-toggle {
   display: flex;
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   padding: 0;
   align-items: center;
   justify-content: center;
   flex-direction: column;
   gap: 5px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 13px;
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
   cursor: pointer;
@@ -136,7 +137,7 @@ a {
 
 .menu-toggle__bar {
   display: block;
-  width: 20px;
+  width: 18px;
   height: 2px;
   border-radius: 2px;
   background: currentColor;
@@ -148,7 +149,7 @@ a {
   right: 0;
   z-index: 20;
   display: none;
-  width: min(260px, calc(100vw - 32px));
+  width: min(196px, calc(100vw - 32px));
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -173,6 +174,7 @@ a {
   background: transparent;
   color: var(--text);
   font: inherit;
+  font-weight: 800;
   text-align: left;
   cursor: pointer;
 }
