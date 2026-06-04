@@ -250,7 +250,8 @@ async function normalizeEquipmentGlb(id) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    showToast(data.error || "Не удалось конвертировать GLB.", "error");
+    const detail = data.error || data.message || `Ошибка сервера (${response.status})`;
+    showToast(detail, "error");
     return;
   }
 

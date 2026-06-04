@@ -389,6 +389,8 @@ async function findEquipment(equipmentId) {
        e.environment,
        e.variant,
        e.hotspots_json,
+       e.model_file_size,
+       e.model_file_hash,
        s.code AS specialty_code,
        s.title AS specialty_title
      FROM equipment e
@@ -852,19 +854,37 @@ app.post(
         return;
       }
 
-      const filePath = await resolveModelFilePath(existing.model);
+      const modelBase = String(existing.model || "").split("?")[0];
+      const filePath = await resolveModelFilePath(modelBase);
       if (!filePath) {
         res.status(400).json({ error: "Файл GLB не найден на сервере (public/models или models)." });
         return;
       }
 
       const glbNormalize = await normalizeGlbInPlace(filePath);
+
+      if (glbNormalize.reason === "error" || glbNormalize.reason === "metalrough-failed") {
+        res.status(422).json({
+          error: glbNormalize.message || "Не удалось обработать GLB.",
+          reason: glbNormalize.reason,
+        });
+        return;
+      }
+
       const meta = await computeFileMetadata(filePath);
 
-      await run(
-        `UPDATE equipment SET model_file_size = ?, model_file_hash = ? WHERE id = ?`,
-        [meta.modelFileSize, meta.modelFileHash, existing.id],
-      );
+      try {
+        await run(
+          `UPDATE equipment SET model_file_size = ?, model_file_hash = ? WHERE id = ?`,
+          [meta.modelFileSize, meta.modelFileHash, existing.id],
+        );
+      } catch (dbError) {
+        await algorithms.migrateSchema({ run, all });
+        await run(
+          `UPDATE equipment SET model_file_size = ?, model_file_hash = ? WHERE id = ?`,
+          [meta.modelFileSize, meta.modelFileHash, existing.id],
+        );
+      }
 
       res.json({
         id: existing.id,
@@ -872,11 +892,14 @@ app.post(
         reason: glbNormalize.reason,
         message: glbNormalize.message,
         diagnostics: { before: glbNormalize.before, after: glbNormalize.after },
-        model: equipmentModelUrl(existing.model.split("?")[0], meta.modelFileHash),
+        model: equipmentModelUrl(modelBase, meta.modelFileHash),
         modelFileHash: meta.modelFileHash,
       });
     } catch (error) {
-      next(error);
+      console.error("normalize-glb:", req.params.equipmentId, error);
+      res.status(500).json({
+        error: error.message || "Internal server error",
+      });
     }
   },
 );
