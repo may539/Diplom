@@ -905,6 +905,18 @@ app.get("/view.html", async (req, res, next) => {
 });
 
 app.use("/vendor", express.static(path.join(rootDir, "vendor"), { index: false }));
+app.use(
+  "/environments",
+  express.static(path.join(rootDir, "public", "environments"), {
+    index: false,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".hdr")) {
+        res.setHeader("Content-Type", "application/octet-stream");
+        res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+      }
+    },
+  }),
+);
 app.use("/models", express.static(modelsPublicDir, modelStaticOptions));
 app.use("/models", express.static(path.join(rootDir, "models"), modelStaticOptions));
 app.use(express.static(rootDir, { index: false }));
