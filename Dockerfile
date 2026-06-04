@@ -3,8 +3,7 @@
 FROM node:20-bookworm-slim AS deps
 
 ENV NODE_ENV=production \
-    npm_config_loglevel=warn \
-    npm_config_build_from_source=true
+    npm_config_loglevel=warn
 
 WORKDIR /app
 
