@@ -243,6 +243,8 @@ async function initDb() {
     await run("ALTER TABLE equipment ADD COLUMN hotspots_json TEXT NOT NULL DEFAULT '[]'");
   }
 
+  await algorithms.migrateSchema({ run, all });
+
   await run(`
     CREATE TABLE IF NOT EXISTS help_articles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -334,8 +336,6 @@ async function initDb() {
       );
     }
   }
-
-  await algorithms.migrateSchema({ run, all });
 }
 
 async function readSpecialties() {
@@ -343,7 +343,8 @@ async function readSpecialties() {
     "SELECT id, code, title, description FROM specialties ORDER BY sort_order ASC, code ASC",
   );
   const equipmentRows = await all(
-    `SELECT id, specialty_id, title, type, short, description, features_json, model, environment, variant, hotspots_json
+    `SELECT id, specialty_id, title, type, short, description, features_json, model, environment, variant, hotspots_json,
+            model_file_size, model_file_hash
      FROM equipment
      ORDER BY created_at ASC, title ASC`,
   );
