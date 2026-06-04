@@ -42,6 +42,7 @@
           <strong>или</strong> загрузите файл .glb.
         </p>
         <form id="equipment-form" class="admin-form" enctype="multipart/form-data" method="post">
+          <input type="hidden" name="equipmentId" id="equipment-id" value="" />
           <label>
             Специальность *
             <select name="specialtyId" id="specialty-select" required></select>
@@ -93,9 +94,26 @@
             </label>
           </div>
 
-          <button class="button button--primary" type="submit">Добавить модель и сгенерировать QR</button>
+          <div class="admin-form__actions">
+            <button class="button button--primary" type="submit" id="form-submit">
+              Добавить модель и сгенерировать QR
+            </button>
+            <button class="button button--ghost" type="button" id="cancel-edit" hidden>
+              Отменить редактирование
+            </button>
+          </div>
           <p id="form-status" class="admin-status" role="status" aria-live="polite"></p>
         </form>
+      </article>
+
+      <article class="admin-card" id="equipment-catalog" aria-labelledby="catalog-title">
+        <h2 id="catalog-title">QR-коды и управление объектами</h2>
+        <p class="admin-card__hint">
+          Список всех моделей в базе. Можно распечатать QR выбранного объекта, изменить карточку или удалить запись.
+        </p>
+        <div id="equipment-catalog-list" class="admin-catalog" aria-live="polite">
+          <p class="admin-catalog__loading">Загрузка каталога…</p>
+        </div>
       </article>
     </main>
 
@@ -104,7 +122,7 @@
       <div class="modal__content modal__content--printable">
         <button class="modal__close no-print" type="button" data-close-modal aria-label="Закрыть">×</button>
         <p class="eyebrow">QR для печати</p>
-        <h2 id="qr-modal-title">Новая модель добавлена</h2>
+        <h2 id="qr-modal-title">QR-код модели</h2>
         <canvas id="qr-canvas" width="280" height="280" aria-label="QR-код для новой модели"></canvas>
         <p id="qr-caption"></p>
         <div class="admin-modal-actions no-print">

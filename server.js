@@ -621,7 +621,42 @@ app.get("/api/admin/specialties", async (req, res, next) => {
   }
 });
 
-app.post("/api/admin/equipment", (req, res, next) => {
+function parseEquipmentFormBody(req) {
+  const featuresRaw = req.body.features;
+  const features =
+    typeof featuresRaw === "string"
+      ? normalizeArray(featuresRaw.split("\n"))
+      : Array.isArray(featuresRaw)
+        ? normalizeArray(featuresRaw)
+        : [];
+
+  let hotspots = [];
+  if (req.body.hotspots) {
+    try {
+      const parsed = JSON.parse(String(req.body.hotspots));
+      if (Array.isArray(parsed)) {
+        hotspots = parsed;
+      }
+    } catch {
+      hotspots = [];
+    }
+  }
+
+  return {
+    specialtyId: String(req.body.specialtyId || "").trim(),
+    title: String(req.body.title || "").trim(),
+    type: String(req.body.type || "").trim(),
+    short: String(req.body.short || "").trim(),
+    description: String(req.body.description || "").trim(),
+    features,
+    environment: String(req.body.environment || "neutral").trim(),
+    variant: String(req.body.variant || "sensor").trim(),
+    hotspots,
+    model: String(req.body.model || "").trim(),
+  };
+}
+
+function adminUploadMiddleware(req, res, next) {
   upload.single("glb")(req, res, (err) => {
     if (err) {
       next(err);
@@ -629,7 +664,40 @@ app.post("/api/admin/equipment", (req, res, next) => {
     }
     next();
   });
-}, async (req, res, next) => {
+}
+
+app.get("/api/admin/equipment", async (req, res, next) => {
+  if (!assertAdmin(req, res)) {
+    return;
+  }
+
+  try {
+    const rows = await all(
+      `SELECT
+         e.id,
+         e.specialty_id,
+         e.title,
+         e.type,
+         e.short,
+         e.description,
+         e.features_json,
+         e.model,
+         e.environment,
+         e.variant,
+         e.hotspots_json,
+         s.code AS specialty_code,
+         s.title AS specialty_title
+       FROM equipment e
+       INNER JOIN specialties s ON s.id = e.specialty_id
+       ORDER BY s.sort_order ASC, s.code ASC, e.title ASC`,
+    );
+    res.json(rows.map((row) => normalizeEquipmentRow(row)));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/admin/equipment", adminUploadMiddleware, async (req, res, next) => {
   if (!assertAdmin(req, res)) {
     if (req.file) {
       await fsp.unlink(req.file.path).catch(() => {});
@@ -638,39 +706,13 @@ app.post("/api/admin/equipment", (req, res, next) => {
   }
 
   try {
-    const specialtyId = String(req.body.specialtyId || "").trim();
-    const title = String(req.body.title || "").trim();
-    const type = String(req.body.type || "").trim();
-    const short = String(req.body.short || "").trim();
-    const description = String(req.body.description || "").trim();
-    const featuresRaw = req.body.features;
-    const features =
-      typeof featuresRaw === "string"
-        ? normalizeArray(featuresRaw.split("\n"))
-        : Array.isArray(featuresRaw)
-          ? normalizeArray(featuresRaw)
-          : [];
-    const environment = String(req.body.environment || "neutral").trim();
-    const variant = String(req.body.variant || "sensor").trim();
-
-    let hotspots = [];
-    if (req.body.hotspots) {
-      try {
-        const parsed = JSON.parse(String(req.body.hotspots));
-        if (Array.isArray(parsed)) {
-          hotspots = parsed;
-        }
-      } catch {
-        hotspots = [];
-      }
-    }
-
-    let model = String(req.body.model || "").trim();
+    const body = parseEquipmentFormBody(req);
+    let model = body.model;
     if (req.file) {
       model = `/models/${req.file.filename}`;
     }
 
-    if (!specialtyId || !title || !type || !short || !description || !model) {
+    if (!body.specialtyId || !body.title || !body.type || !body.short || !body.description || !model) {
       if (req.file) {
         await fsp.unlink(req.file.path).catch(() => {});
       }
@@ -678,7 +720,7 @@ app.post("/api/admin/equipment", (req, res, next) => {
       return;
     }
 
-    const specialty = await get("SELECT id FROM specialties WHERE id = ?", [specialtyId]);
+    const specialty = await get("SELECT id FROM specialties WHERE id = ?", [body.specialtyId]);
     if (!specialty) {
       if (req.file) {
         await fsp.unlink(req.file.path).catch(() => {});
@@ -687,7 +729,7 @@ app.post("/api/admin/equipment", (req, res, next) => {
       return;
     }
 
-    const baseId = slugify(title) || "equipment";
+    const baseId = slugify(body.title) || "equipment";
     let equipmentId = baseId;
     let suffix = 1;
     while (await get("SELECT id FROM equipment WHERE id = ?", [equipmentId])) {
@@ -701,28 +743,127 @@ app.post("/api/admin/equipment", (req, res, next) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         equipmentId,
-        specialtyId,
-        title,
-        type,
-        short,
-        description,
-        JSON.stringify(features),
+        body.specialtyId,
+        body.title,
+        body.type,
+        body.short,
+        body.description,
+        JSON.stringify(body.features),
         model,
-        environment,
-        variant,
-        JSON.stringify(hotspots),
+        body.environment,
+        body.variant,
+        JSON.stringify(body.hotspots),
       ],
     );
 
     res.status(201).json({
       id: equipmentId,
-      title,
+      title: body.title,
       url: equipmentUrl(req, equipmentId),
     });
   } catch (error) {
     if (req.file) {
       await fsp.unlink(req.file.path).catch(() => {});
     }
+    next(error);
+  }
+});
+
+app.put("/api/admin/equipment/:equipmentId", validateEquipmentIdParam, adminUploadMiddleware, async (req, res, next) => {
+  if (!assertAdmin(req, res)) {
+    if (req.file) {
+      await fsp.unlink(req.file.path).catch(() => {});
+    }
+    return;
+  }
+
+  try {
+    const existing = await findEquipment(req.params.equipmentId);
+    if (!existing) {
+      if (req.file) {
+        await fsp.unlink(req.file.path).catch(() => {});
+      }
+      res.status(404).json({ error: "Модель не найдена." });
+      return;
+    }
+
+    const body = parseEquipmentFormBody(req);
+    let model = body.model || existing.model;
+    if (req.file) {
+      model = `/models/${req.file.filename}`;
+    }
+
+    if (!body.specialtyId || !body.title || !body.type || !body.short || !body.description || !model) {
+      if (req.file) {
+        await fsp.unlink(req.file.path).catch(() => {});
+      }
+      res.status(400).json({ error: "Заполните все обязательные поля модели." });
+      return;
+    }
+
+    const specialty = await get("SELECT id FROM specialties WHERE id = ?", [body.specialtyId]);
+    if (!specialty) {
+      if (req.file) {
+        await fsp.unlink(req.file.path).catch(() => {});
+      }
+      res.status(400).json({ error: "Выбрана неизвестная специальность." });
+      return;
+    }
+
+    await run(
+      `UPDATE equipment
+       SET specialty_id = ?, title = ?, type = ?, short = ?, description = ?,
+           features_json = ?, model = ?, environment = ?, variant = ?, hotspots_json = ?
+       WHERE id = ?`,
+      [
+        body.specialtyId,
+        body.title,
+        body.type,
+        body.short,
+        body.description,
+        JSON.stringify(body.features),
+        model,
+        body.environment,
+        body.variant,
+        JSON.stringify(body.hotspots),
+        req.params.equipmentId,
+      ],
+    );
+
+    res.json({
+      id: req.params.equipmentId,
+      title: body.title,
+      url: equipmentUrl(req, req.params.equipmentId),
+    });
+  } catch (error) {
+    if (req.file) {
+      await fsp.unlink(req.file.path).catch(() => {});
+    }
+    next(error);
+  }
+});
+
+app.delete("/api/admin/equipment/:equipmentId", validateEquipmentIdParam, async (req, res, next) => {
+  if (!assertAdmin(req, res)) {
+    return;
+  }
+
+  try {
+    const existing = await findEquipment(req.params.equipmentId);
+    if (!existing) {
+      res.status(404).json({ error: "Модель не найдена." });
+      return;
+    }
+
+    await run("DELETE FROM equipment WHERE id = ?", [req.params.equipmentId]);
+
+    if (existing.model && existing.model.startsWith("/models/")) {
+      const filePath = path.join(modelsPublicDir, path.basename(existing.model));
+      await fsp.unlink(filePath).catch(() => {});
+    }
+
+    res.json({ id: req.params.equipmentId, deleted: true });
+  } catch (error) {
     next(error);
   }
 });

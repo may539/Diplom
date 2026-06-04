@@ -1,9 +1,14 @@
 const equipmentForm = document.querySelector("#equipment-form");
 const specialtySelect = document.querySelector("#specialty-select");
 const statusText = document.querySelector("#form-status");
+const equipmentIdInput = document.querySelector("#equipment-id");
+const formSubmitButton = document.querySelector("#form-submit");
+const cancelEditButton = document.querySelector("#cancel-edit");
+const catalogList = document.querySelector("#equipment-catalog-list");
 const qrModal = document.querySelector("#qr-modal");
 const qrCanvas = document.querySelector("#qr-canvas");
 const qrCaption = document.querySelector("#qr-caption");
+const qrModalTitle = document.querySelector("#qr-modal-title");
 const printQrButton = document.querySelector("#print-qr");
 const toastRegion = document.querySelector("#admin-toast-region");
 
@@ -44,7 +49,18 @@ function setFormDisabled(isDisabled) {
   });
 }
 
-function openModal() {
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function openModal(title) {
+  if (title) {
+    qrModalTitle.textContent = title;
+  }
   qrModal.classList.add("is-open");
   qrModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
@@ -91,6 +107,36 @@ function authHeaders() {
   return headers;
 }
 
+function isEditing() {
+  return Boolean(equipmentIdInput.value.trim());
+}
+
+function setEditMode(item) {
+  equipmentIdInput.value = item.id;
+  specialtySelect.value = item.specialtyId;
+  equipmentForm.querySelector('[name="title"]').value = item.title;
+  equipmentForm.querySelector('[name="type"]').value = item.type;
+  equipmentForm.querySelector('[name="short"]').value = item.short;
+  equipmentForm.querySelector('[name="description"]').value = item.description;
+  equipmentForm.querySelector('[name="features"]').value = (item.features || []).join("\n");
+  equipmentForm.querySelector('[name="model"]').value = item.model.startsWith("/models/") ? "" : item.model;
+  equipmentForm.querySelector('[name="variant"]').value = item.variant || "sensor";
+  equipmentForm.querySelector('[name="environment"]').value = item.environment || "neutral";
+  formSubmitButton.textContent = "Сохранить изменения";
+  cancelEditButton.hidden = false;
+  document.querySelector("#admin-form-title").textContent = `Редактирование: ${item.title}`;
+  setStatus(`Редактируется объект «${item.title}». Загрузите новый .glb при необходимости.`);
+  window.location.hash = "admin-form";
+}
+
+function clearEditMode() {
+  equipmentIdInput.value = "";
+  formSubmitButton.textContent = "Добавить модель и сгенерировать QR";
+  cancelEditButton.hidden = true;
+  document.querySelector("#admin-form-title").textContent = "Новая 3D-модель";
+  equipmentForm.reset();
+}
+
 async function loadSpecialties() {
   specialtySelect.innerHTML = "<option>Загрузка...</option>";
   try {
@@ -113,7 +159,6 @@ async function loadSpecialties() {
       .map((item) => `<option value="${item.id}">${item.code} — ${item.title}</option>`)
       .join("");
     setFormDisabled(false);
-    setStatus("");
   } catch (error) {
     specialtySelect.innerHTML = "";
     setFormDisabled(true);
@@ -121,11 +166,101 @@ async function loadSpecialties() {
   }
 }
 
+async function loadCatalog() {
+  if (!catalogList) {
+    return;
+  }
+
+  catalogList.innerHTML = '<p class="admin-catalog__loading">Загрузка каталога…</p>';
+
+  try {
+    const response = await fetch("/api/admin/equipment", { headers: authHeaders() });
+    if (response.status === 401) {
+      catalogList.innerHTML = '<p class="admin-catalog__error">Требуется авторизация.</p>';
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error("Не удалось загрузить каталог.");
+    }
+
+    const items = await response.json();
+    if (!items.length) {
+      catalogList.innerHTML = '<p class="admin-catalog__empty">В базе пока нет объектов.</p>';
+      return;
+    }
+
+    catalogList.innerHTML = items
+      .map(
+        (item) => `
+          <article class="admin-catalog__item" data-id="${escapeHtml(item.id)}">
+            <div class="admin-catalog__meta">
+              <strong>${escapeHtml(item.title)}</strong>
+              <span>${escapeHtml(item.specialtyCode || "")} · ${escapeHtml(item.type || "")}</span>
+              <span class="admin-catalog__id">${escapeHtml(item.id)}</span>
+            </div>
+            <div class="admin-catalog__actions">
+              <button class="button button--ghost" type="button" data-print-qr="${escapeHtml(item.id)}">
+                Печать QR
+              </button>
+              <button class="button button--ghost" type="button" data-edit-equipment="${escapeHtml(item.id)}">
+                Изменить
+              </button>
+              <button class="button button--ghost admin-catalog__delete" type="button" data-delete-equipment="${escapeHtml(item.id)}">
+                Удалить
+              </button>
+            </div>
+          </article>
+        `,
+      )
+      .join("");
+
+    catalogList._items = items;
+  } catch (error) {
+    catalogList.innerHTML = '<p class="admin-catalog__error">Ошибка загрузки списка.</p>';
+  }
+}
+
+async function showQrForEquipment(item) {
+  const response = await fetch(`/api/qr/${encodeURIComponent(item.id)}`, { headers: authHeaders() });
+  const payload = response.ok ? await response.json() : { url: "", title: item.title };
+
+  drawQrCode(payload.url || "");
+  qrCaption.textContent = `${item.title} — отсканируйте QR для полноэкранного просмотра на телефоне.`;
+  openModal(`QR: ${item.title}`);
+}
+
 function parseFeatures(value) {
   return value
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+async function deleteEquipment(id) {
+  const item = (catalogList._items || []).find((entry) => entry.id === id);
+  const label = item ? item.title : id;
+  if (!window.confirm(`Удалить объект «${label}» из базы?`)) {
+    return;
+  }
+
+  const response = await fetch(`/api/admin/equipment/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    showToast(data.error || "Не удалось удалить.", "error");
+    return;
+  }
+
+  if (isEditing() && equipmentIdInput.value === id) {
+    clearEditMode();
+  }
+
+  showToast("Объект удалён", "success");
+  await loadCatalog();
 }
 
 equipmentForm.addEventListener("submit", async (event) => {
@@ -140,24 +275,29 @@ equipmentForm.addEventListener("submit", async (event) => {
   const modelInput = equipmentForm.querySelector('input[name="model"]');
   const modelUrl = String(modelInput.value || "").trim();
   const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+  const editId = equipmentIdInput.value.trim();
 
-  if (!hasFile && !modelUrl) {
+  if (!editId && !hasFile && !modelUrl) {
     setStatus("Укажите URL модели или выберите файл .glb.", true);
     return;
   }
 
   const formData = new FormData(equipmentForm);
   formData.set("features", parseFeatures(String(formData.get("features") || "")).join("\n"));
+  formData.delete("equipmentId");
 
   if (!hasFile) {
     formData.delete("glb");
   }
 
-  setStatus("Сохраняем модель...");
+  const url = editId ? `/api/admin/equipment/${encodeURIComponent(editId)}` : "/api/admin/equipment";
+  const method = editId ? "PUT" : "POST";
+
+  setStatus(editId ? "Сохраняем изменения…" : "Сохраняем модель…");
 
   try {
-    const response = await fetch("/api/admin/equipment", {
-      method: "POST",
+    const response = await fetch(url, {
+      method,
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
     });
@@ -171,26 +311,59 @@ equipmentForm.addEventListener("submit", async (event) => {
     }
 
     if (!response.ok) {
-      throw new Error(data.error || "Ошибка добавления модели.");
+      throw new Error(data.error || "Ошибка сохранения модели.");
     }
 
     if (hasFile) {
       showToast("Файл загружен", "success");
     }
-    showToast("Данные сохранены", "success");
+    showToast(editId ? "Изменения сохранены" : "Данные сохранены", "success");
 
-    const qrResponse = await fetch(`/api/qr/${encodeURIComponent(data.id)}`, {
-      headers: authHeaders(),
-    });
+    const qrResponse = await fetch(`/api/qr/${encodeURIComponent(data.id)}`, { headers: authHeaders() });
     const qrPayload = qrResponse.ok ? await qrResponse.json() : data;
 
     drawQrCode(qrPayload.url || data.url);
-    qrCaption.textContent = `${data.title} — отсканируйте QR: на телефоне откроется полноэкранный просмотр 3D-модели.`;
-    openModal();
-    setStatus("Модель добавлена. QR-код готов к печати.");
+    qrCaption.textContent = `${data.title} — отсканируйте QR для полноэкранного просмотра на телефоне.`;
+    openModal(editId ? `QR: ${data.title}` : "Новая модель добавлена");
+
+    setStatus(editId ? "Изменения сохранены. QR обновлён." : "Модель добавлена. QR-код готов к печати.");
+    clearEditMode();
     equipmentForm.reset();
+    await loadCatalog();
   } catch (error) {
     setStatus(error.message, true);
+  }
+});
+
+cancelEditButton.addEventListener("click", () => {
+  clearEditMode();
+  setStatus("");
+});
+
+catalogList?.addEventListener("click", async (event) => {
+  const printButton = event.target.closest("[data-print-qr]");
+  const editButton = event.target.closest("[data-edit-equipment]");
+  const deleteButton = event.target.closest("[data-delete-equipment]");
+  const items = catalogList._items || [];
+
+  if (printButton) {
+    const item = items.find((entry) => entry.id === printButton.dataset.printQr);
+    if (item) {
+      await showQrForEquipment(item);
+    }
+    return;
+  }
+
+  if (editButton) {
+    const item = items.find((entry) => entry.id === editButton.dataset.editEquipment);
+    if (item) {
+      setEditMode(item);
+    }
+    return;
+  }
+
+  if (deleteButton) {
+    await deleteEquipment(deleteButton.dataset.deleteEquipment);
   }
 });
 
@@ -206,14 +379,30 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-printQrButton.addEventListener("click", () => {
+function printQrSheet() {
+  document.body.classList.add("is-printing-qr");
   window.print();
+}
+
+window.addEventListener("afterprint", () => {
+  document.body.classList.remove("is-printing-qr");
 });
 
-if (getAdminToken()) {
-  loadSpecialties();
-} else {
-  specialtySelect.innerHTML = "";
-  setFormDisabled(true);
-  setStatus("Откройте админ-панель через кнопку «Загрузить модель» на главной странице и введите пароль.", true);
+printQrButton.addEventListener("click", printQrSheet);
+
+async function initAdmin() {
+  if (!getAdminToken()) {
+    specialtySelect.innerHTML = "";
+    setFormDisabled(true);
+    if (catalogList) {
+      catalogList.innerHTML = '<p class="admin-catalog__error">Войдите через «Загрузить модель» на главной странице.</p>';
+    }
+    setStatus("Откройте админ-панель через кнопку «Загрузить модель» на главной странице и введите пароль.", true);
+    return;
+  }
+
+  await loadSpecialties();
+  await loadCatalog();
 }
+
+initAdmin();

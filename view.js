@@ -18,7 +18,11 @@ async function init() {
     return;
   }
 
-  configureModelViewer(viewModel);
+  if (typeof bindModelViewerLighting === "function") {
+    bindModelViewerLighting(viewModel);
+  } else {
+    configureModelViewer(viewModel);
+  }
 
   try {
     const response = await fetch(`/api/equipment/${encodeURIComponent(equipmentId)}`);

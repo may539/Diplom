@@ -343,7 +343,11 @@ function renderActiveEquipment(equipment) {
   equipmentFeatures.innerHTML = (equipment.features || []).map((feature) => `<li>${escapeHtml(feature)}</li>`).join("");
 
   if (equipmentModelViewer) {
-    configureModelViewer(equipmentModelViewer);
+    if (typeof bindModelViewerLighting === "function") {
+      bindModelViewerLighting(equipmentModelViewer);
+    } else {
+      configureModelViewer(equipmentModelViewer);
+    }
     equipmentModelViewer.setAttribute("src", equipment.model);
     equipmentModelViewer.setAttribute("alt", equipment.title);
     equipmentModelViewer.toggleAttribute("auto-rotate", isAutoRotate);
@@ -881,8 +885,12 @@ zoomResetButton.addEventListener("click", () => {
 async function init() {
   try {
     setZoom(1);
-    if (equipmentModelViewer && typeof configureModelViewer === "function") {
-      configureModelViewer(equipmentModelViewer);
+    if (equipmentModelViewer) {
+      if (typeof bindModelViewerLighting === "function") {
+        bindModelViewerLighting(equipmentModelViewer);
+      } else if (typeof configureModelViewer === "function") {
+        configureModelViewer(equipmentModelViewer);
+      }
     }
     await loadData();
     initFromLocation();
