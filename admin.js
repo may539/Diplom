@@ -260,6 +260,7 @@ async function deleteEquipment(id) {
   }
 
   showToast("Объект удалён", "success");
+  sessionStorage.setItem("catalogNeedsReload", "1");
   await loadCatalog();
 }
 
@@ -327,6 +328,7 @@ equipmentForm.addEventListener("submit", async (event) => {
     openModal(editId ? `QR: ${data.title}` : "Новая модель добавлена");
 
     setStatus(editId ? "Изменения сохранены. QR обновлён." : "Модель добавлена. QR-код готов к печати.");
+    sessionStorage.setItem("catalogNeedsReload", "1");
     clearEditMode();
     equipmentForm.reset();
     await loadCatalog();

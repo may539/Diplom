@@ -33,8 +33,11 @@ const modelStaticOptions = {
   index: false,
   maxAge: "7d",
   immutable: true,
-  setHeaders(res) {
+  setHeaders(res, filePath) {
     res.setHeader("Cache-Control", `public, max-age=${sevenDaysInSeconds}, immutable`);
+    if (filePath.endsWith(".glb")) {
+      res.setHeader("Content-Type", "model/gltf-binary");
+    }
   },
 };
 
@@ -46,8 +49,8 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "https://unpkg.com", "https://ajax.googleapis.com", "https://cdn.jsdelivr.net"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'", "https:"],
+        imgSrc: ["'self'", "data:", "https:", "blob:"],
+        connectSrc: ["'self'", "https:", "blob:"],
         modelSrc: ["'self'", "https:", "data:", "blob:"],
         workerSrc: ["'self'", "blob:"],
         objectSrc: ["'none'"],
@@ -57,9 +60,14 @@ app.use(
         "upgrade-insecure-requests": null,
       },
     },
-    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginResourcePolicy: { policy: "same-site" },
   }),
 );
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  next();
+});
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,

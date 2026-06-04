@@ -26,6 +26,7 @@ const adminLoginModalForm = document.querySelector("#admin-login-modal-form");
 const adminLoginModalPassword = document.querySelector("#admin-login-modal-password");
 const adminLoginModalStatus = document.querySelector("#admin-login-modal-status");
 const isFileMode = window.location.protocol === "file:";
+const CATALOG_RELOAD_KEY = "catalogNeedsReload";
 
 let specialties = [];
 let activeSpecialtyId = "";
@@ -349,6 +350,9 @@ function renderActiveEquipment(equipment) {
     if (typeof bindModelViewerLighting === "function") {
       bindModelViewerLighting(equipmentModelViewer);
     }
+    if (typeof applyModelCrossOrigin === "function") {
+      applyModelCrossOrigin(equipmentModelViewer, equipment.model);
+    }
     equipmentModelViewer.setAttribute("src", equipment.model);
     equipmentModelViewer.setAttribute("alt", equipment.title);
     equipmentModelViewer.toggleAttribute("auto-rotate", isAutoRotate);
@@ -481,7 +485,7 @@ async function refreshActiveEquipmentFromApi() {
   }
 
   try {
-    const response = await fetch(`/api/equipment/${encodeURIComponent(id)}`);
+    const response = await fetch(`/api/equipment/${encodeURIComponent(id)}`, { cache: "no-store" });
 
     if (!response.ok) {
       activeEquipmentDetail = null;
@@ -656,7 +660,7 @@ async function loadData() {
     specialties = window.EQUIPMENT_DATA;
   } else {
     try {
-      const response = await fetch("/api/specialties");
+      const response = await fetch("/api/specialties", { cache: "no-store" });
 
       if (!response.ok) {
         throw new Error("Specialties API request failed");
@@ -883,6 +887,14 @@ zoomResetButton.addEventListener("click", () => {
   setZoom(1);
 });
 
+async function refreshCatalogView() {
+  await loadData();
+  initFromLocation();
+  renderSpecialties();
+  await refreshActiveEquipmentFromApi();
+  render();
+}
+
 async function init() {
   try {
     setZoom(1);
@@ -893,16 +905,32 @@ async function init() {
         configureModelViewer(equipmentModelViewer);
       }
     }
-    await loadData();
-    initFromLocation();
-    renderSpecialties();
-    await refreshActiveEquipmentFromApi();
-    render();
+    await refreshCatalogView();
     applyInitialViewOptions();
   } catch (error) {
     specialtyGrid.innerHTML = '<p class="error-state">Не удалось загрузить каталог оборудования.</p>';
     equipmentList.innerHTML = '<p class="error-state">Проверьте запуск Node.js сервера.</p>';
   }
 }
+
+window.addEventListener("pageshow", async (event) => {
+  if (isFileMode) {
+    return;
+  }
+
+  const needsReload = sessionStorage.getItem(CATALOG_RELOAD_KEY) === "1" || event.persisted;
+  if (!needsReload) {
+    return;
+  }
+
+  sessionStorage.removeItem(CATALOG_RELOAD_KEY);
+
+  try {
+    await refreshCatalogView();
+    applyInitialViewOptions();
+  } catch (error) {
+    console.error(error);
+  }
+});
 
 init();

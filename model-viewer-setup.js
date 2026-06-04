@@ -13,7 +13,6 @@ function resolveLocalHdrUrl() {
 }
 
 function useBuiltinLighting(element) {
-  element.setAttribute("crossorigin", "anonymous");
   element.setAttribute("environment-image", "legacy");
   element.removeAttribute("skybox-image");
   element.setAttribute("exposure", "1");
@@ -23,7 +22,6 @@ function useBuiltinLighting(element) {
 }
 
 function useHdrLighting(element, hdrUrl) {
-  element.setAttribute("crossorigin", "anonymous");
   element.setAttribute("environment-image", hdrUrl);
   element.removeAttribute("skybox-image");
   element.setAttribute("exposure", "1");
@@ -115,5 +113,19 @@ function bindModelViewerLighting(element) {
   }
 }
 
+function applyModelCrossOrigin(element, modelUrl) {
+  if (!element || !modelUrl) {
+    return;
+  }
+
+  const isExternal = /^https?:\/\//i.test(String(modelUrl));
+  if (isExternal) {
+    element.setAttribute("crossorigin", "anonymous");
+  } else {
+    element.removeAttribute("crossorigin");
+  }
+}
+
 window.configureModelViewer = configureModelViewer;
 window.bindModelViewerLighting = bindModelViewerLighting;
+window.applyModelCrossOrigin = applyModelCrossOrigin;
