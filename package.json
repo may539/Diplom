@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "check": "node --check app.js && node --check admin.js && node --check server.js && node --check view.js && node --check model-viewer-setup.js && node --check lib/normalize-glb.js && node --check server/algorithms/index.js && node --check algorithms-client/specialty-tree.js && node --check algorithms-client/catalog-render.js",
+    "check": "node --check app.js && node --check admin.js && node --check server.js && node --check view.js && node --check model-viewer-setup.js && node --check lib/normalize-glb.js && node --check lib/model-url.js && node --check server/algorithms/index.js && node --check algorithms-client/specialty-tree.js && node --check algorithms-client/catalog-render.js",
     "normalize-models": "node scripts/normalize-all-models.js",
     "test": "npm run check && node --check scripts/verify-data-fallback.js && node scripts/verify-data-fallback.js"
   },

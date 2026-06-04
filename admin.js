@@ -254,13 +254,25 @@ async function normalizeEquipmentGlb(id) {
     return;
   }
 
+  sessionStorage.setItem("catalogNeedsReload", "1");
+
   if (data.glbNormalized) {
-    showToast("Текстуры исправлены. Обновите каталог на главной (F5).", "success");
-    sessionStorage.setItem("catalogNeedsReload", "1");
+    showToast(
+      (data.message || "GLB обновлён.") + " На главной нажмите Ctrl+F5 (жёсткое обновление).",
+      "success",
+    );
     return;
   }
 
-  showToast("Файл уже в актуальном формате или конвертация не требуется.", "success");
+  if (data.reason === "no-textures-in-glb") {
+    showToast(data.message || "В GLB нет текстур — нужен другой файл.", "error");
+    return;
+  }
+
+  showToast(
+    data.message || "Конвертация не изменила файл. Попробуйте перезагрузить GLB из Blender (metal/rough, встроенные текстуры).",
+    "error",
+  );
 }
 
 async function deleteEquipment(id) {

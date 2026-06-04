@@ -13,6 +13,8 @@ const QRCode = require("qrcode");
 const sqlite3 = require("sqlite3").verbose();
 const algorithms = require("./server/algorithms");
 const { normalizeGlbInPlace } = require("./lib/normalize-glb");
+const { equipmentModelUrl } = require("./lib/model-url");
+const { computeFileMetadata } = require("./server/algorithms/file-metadata");
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
@@ -34,9 +36,8 @@ const sevenDaysInSeconds = 7 * 24 * 60 * 60;
 const modelStaticOptions = {
   index: false,
   maxAge: "7d",
-  immutable: true,
   setHeaders(res, filePath) {
-    res.setHeader("Cache-Control", `public, max-age=${sevenDaysInSeconds}, immutable`);
+    res.setHeader("Cache-Control", `public, max-age=${sevenDaysInSeconds}`);
     if (filePath.endsWith(".glb")) {
       res.setHeader("Content-Type", "model/gltf-binary");
     }
@@ -179,7 +180,7 @@ function normalizeEquipmentRow(row) {
     short: row.short,
     description: row.description,
     features: parseJsonArray(row.features_json),
-    model: row.model,
+    model: equipmentModelUrl(row.model, row.model_file_hash),
     environment: row.environment,
     variant: row.variant,
     hotspots: parseJsonArray(row.hotspots_json),
@@ -701,18 +702,32 @@ function adminUploadMiddleware(req, res, next) {
   });
 }
 
-function modelPathFromUrl(modelUrl) {
+async function resolveModelFilePath(modelUrl) {
   const value = String(modelUrl || "").trim();
   if (!value.startsWith("/models/")) {
     return null;
   }
 
-  const filename = path.basename(value);
+  const filename = path.basename(value.split("?")[0]);
   if (!filename.toLowerCase().endsWith(".glb")) {
     return null;
   }
 
-  return path.join(modelsPublicDir, filename);
+  const candidates = [
+    path.join(modelsPublicDir, filename),
+    path.join(rootDir, "models", filename),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      await fsp.access(candidate);
+      return candidate;
+    } catch {
+      // try next path
+    }
+  }
+
+  return null;
 }
 
 async function processUploadedGlb(file) {
@@ -837,17 +852,28 @@ app.post(
         return;
       }
 
-      const filePath = modelPathFromUrl(existing.model);
+      const filePath = await resolveModelFilePath(existing.model);
       if (!filePath) {
-        res.status(400).json({ error: "Для этой записи нет локального GLB на сервере." });
+        res.status(400).json({ error: "Файл GLB не найден на сервере (public/models или models)." });
         return;
       }
 
       const glbNormalize = await normalizeGlbInPlace(filePath);
+      const meta = await computeFileMetadata(filePath);
+
+      await run(
+        `UPDATE equipment SET model_file_size = ?, model_file_hash = ? WHERE id = ?`,
+        [meta.modelFileSize, meta.modelFileHash, existing.id],
+      );
+
       res.json({
         id: existing.id,
         glbNormalized: Boolean(glbNormalize.converted),
         reason: glbNormalize.reason,
+        message: glbNormalize.message,
+        diagnostics: { before: glbNormalize.before, after: glbNormalize.after },
+        model: equipmentModelUrl(existing.model.split("?")[0], meta.modelFileHash),
+        modelFileHash: meta.modelFileHash,
       });
     } catch (error) {
       next(error);
