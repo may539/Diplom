@@ -299,7 +299,7 @@ function renderAnnotation(hotspots, index) {
     modelLooksUntextured(equipmentModelViewer)
   ) {
     annotationPanel.innerHTML =
-      "<span>Модель без текстур (белый корпус). В админке откройте объект и нажмите «Исправить текстуры», либо загрузите GLB заново.</span>";
+      "<span>Модель без текстур (белый корпус). В админке нажмите «Исправить текстуры», затем на главной — Ctrl+F5. Если не помогло, загрузите GLB с встроенными картинками.</span>";
   } else if (equipmentDetailError) {
     annotationPanel.innerHTML =
       "<span>Не удалось обновить карточку с сервера. Показаны данные из каталога.</span>";
