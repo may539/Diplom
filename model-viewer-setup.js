@@ -1,13 +1,35 @@
-const ENVIRONMENT_URLS = [
-  "/environments/neutral.hdr",
-  "https://modelviewer.dev/shared-assets/environments/neutral.hdr",
-];
+/**
+ * Освещение для <model-viewer>.
+ * Файл neutral.hdr на сервере подгружается автоматически — скачивать его вручную не нужно.
+ */
+const LOCAL_HDR = "/environments/neutral.hdr";
+const REMOTE_HDR = "https://modelviewer.dev/shared-assets/environments/neutral.hdr";
 
-function resolveEnvironmentUrl() {
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return new URL(ENVIRONMENT_URLS[0], window.location.origin).href;
+function resolveLocalHdrUrl() {
+  if (typeof window === "undefined" || !window.location?.origin) {
+    return REMOTE_HDR;
   }
-  return ENVIRONMENT_URLS[1];
+  return new URL(LOCAL_HDR, window.location.origin).href;
+}
+
+function useBuiltinLighting(element) {
+  element.setAttribute("crossorigin", "anonymous");
+  element.setAttribute("environment-image", "legacy");
+  element.removeAttribute("skybox-image");
+  element.setAttribute("exposure", "1");
+  element.setAttribute("shadow-intensity", "1");
+  element.setAttribute("tone-mapping", "aces");
+  element.setAttribute("environment-intensity", "1");
+}
+
+function useHdrLighting(element, hdrUrl) {
+  element.setAttribute("crossorigin", "anonymous");
+  element.setAttribute("environment-image", hdrUrl);
+  element.removeAttribute("skybox-image");
+  element.setAttribute("exposure", "1");
+  element.setAttribute("shadow-intensity", "1");
+  element.setAttribute("tone-mapping", "aces");
+  element.setAttribute("environment-intensity", "1.1");
 }
 
 function configureModelViewer(element) {
@@ -15,13 +37,19 @@ function configureModelViewer(element) {
     return;
   }
 
-  element.setAttribute("crossorigin", "anonymous");
-  element.setAttribute("environment-image", resolveEnvironmentUrl());
-  element.removeAttribute("skybox-image");
-  element.setAttribute("exposure", "1");
-  element.setAttribute("shadow-intensity", "1");
-  element.setAttribute("tone-mapping", "aces");
-  element.setAttribute("environment-intensity", "1.2");
+  useBuiltinLighting(element);
+
+  const hdrUrl = resolveLocalHdrUrl();
+  fetch(hdrUrl, { method: "HEAD" })
+    .then((response) => {
+      if (!response.ok) {
+        return;
+      }
+      useHdrLighting(element, hdrUrl);
+    })
+    .catch(() => {
+      /* Остаётся встроенное legacy-освещение */
+    });
 }
 
 function fixModelMaterials(element) {
@@ -45,10 +73,14 @@ function fixModelMaterials(element) {
       });
 
       if ("metalness" in material && material.metalness > 0.95) {
-        material.metalness = 0.85;
+        material.metalness = 0.8;
       }
-      if ("roughness" in material && material.roughness < 0.05) {
-        material.roughness = 0.35;
+      if ("roughness" in material && material.roughness < 0.08) {
+        material.roughness = 0.4;
+      }
+
+      if ("aoMap" in material && material.aoMapIntensity > 0.9) {
+        material.aoMapIntensity = 0.6;
       }
 
       material.needsUpdate = true;
@@ -62,41 +94,24 @@ async function applyLighting(element) {
   try {
     await element.updateComplete;
   } catch {
-    // updateComplete may reject before first model load
+    // первый кадр до загрузки модели
   }
 
   fixModelMaterials(element);
-
-  if (typeof element.jumpCameraToGoal === "function") {
-    element.jumpCameraToGoal();
-  }
 }
 
 function bindModelViewerLighting(element) {
-  if (!element || element.dataset.lightingBound === "1") {
+  if (!element) {
     return;
   }
 
-  element.dataset.lightingBound = "1";
-  configureModelViewer(element);
+  if (element.dataset.lightingBound !== "1") {
+    element.dataset.lightingBound = "1";
+    configureModelViewer(element);
 
-  element.addEventListener("load", () => {
-    applyLighting(element);
-  });
-
-  element.addEventListener("poster-dismissed", () => {
-    applyLighting(element);
-  });
-
-  element.addEventListener("error", () => {
-    const fallback = ENVIRONMENT_URLS[1];
-    if (element.getAttribute("environment-image") !== fallback) {
-      element.setAttribute("environment-image", fallback);
-    }
-  });
-
-  if (element.loaded || element.model) {
-    applyLighting(element);
+    element.addEventListener("load", () => {
+      applyLighting(element);
+    });
   }
 }
 

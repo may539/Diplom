@@ -343,10 +343,11 @@ function renderActiveEquipment(equipment) {
   equipmentFeatures.innerHTML = (equipment.features || []).map((feature) => `<li>${escapeHtml(feature)}</li>`).join("");
 
   if (equipmentModelViewer) {
+    if (typeof configureModelViewer === "function") {
+      configureModelViewer(equipmentModelViewer);
+    }
     if (typeof bindModelViewerLighting === "function") {
       bindModelViewerLighting(equipmentModelViewer);
-    } else {
-      configureModelViewer(equipmentModelViewer);
     }
     equipmentModelViewer.setAttribute("src", equipment.model);
     equipmentModelViewer.setAttribute("alt", equipment.title);

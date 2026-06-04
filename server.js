@@ -911,7 +911,8 @@ app.use(
     index: false,
     setHeaders: (res, filePath) => {
       if (filePath.endsWith(".hdr")) {
-        res.setHeader("Content-Type", "application/octet-stream");
+        res.setHeader("Content-Type", "image/vnd.radiance");
+        res.setHeader("Content-Disposition", "inline");
         res.setHeader("Cache-Control", "public, max-age=604800, immutable");
       }
     },
