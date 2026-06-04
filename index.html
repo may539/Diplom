@@ -12,6 +12,8 @@
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
     <script src="model-viewer-setup.js"></script>
     <script src="data/equipment-data.js"></script>
+    <script src="algorithms-client/specialty-tree.js"></script>
+    <script src="algorithms-client/catalog-render.js"></script>
     <script defer src="app.js"></script>
   </head>
   <body>
@@ -86,7 +88,8 @@
             загружается в интерактивный просмотрщик.
           </p>
         </div>
-        <div class="specialty-grid" id="specialty-grid"></div>
+        <nav class="specialty-tree" id="specialty-tree" aria-label="Дерево специальностей"></nav>
+        <div class="specialty-grid" id="specialty-grid" aria-hidden="true"></div>
       </section>
 
       <section class="section section--viewer" id="viewer" aria-labelledby="viewer-title">

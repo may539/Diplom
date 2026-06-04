@@ -11,6 +11,7 @@ const bcrypt = require("bcrypt");
 const multer = require("multer");
 const QRCode = require("qrcode");
 const sqlite3 = require("sqlite3").verbose();
+const algorithms = require("./server/algorithms");
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
@@ -184,6 +185,9 @@ function normalizeEquipmentRow(row) {
     specialtyId: row.specialty_id,
     specialtyCode: row.specialty_code,
     specialtyTitle: row.specialty_title,
+    sortOrder: row.sort_order ?? 0,
+    modelFileSize: row.model_file_size ?? null,
+    modelFileHash: row.model_file_hash ?? null,
   };
 }
 
@@ -328,6 +332,8 @@ async function initDb() {
       );
     }
   }
+
+  await algorithms.migrateSchema({ run, all });
 }
 
 async function readSpecialties() {
@@ -471,6 +477,12 @@ async function appendScanLog(req, equipment) {
     userAgent: req.get("user-agent") || "unknown",
   };
 
+  try {
+    await algorithms.insertScanLog(run, req, equipment);
+  } catch (error) {
+    console.error("scan_logs insert failed:", error);
+  }
+
   await fsp.mkdir(path.dirname(scanLogPath), { recursive: true });
   await fsp.appendFile(scanLogPath, `${JSON.stringify(entry)}\n`, "utf8");
 }
@@ -514,8 +526,22 @@ app.get("/api/specialties", async (_req, res, next) => {
   }
 });
 
-app.get("/api/equipment", async (_req, res, next) => {
+app.get("/api/specialties/tree", async (_req, res, next) => {
   try {
+    res.json(await algorithms.getSpecialtyTree(all));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/equipment", async (req, res, next) => {
+  try {
+    const specialtyId = String(req.query.specialtyId || "").trim();
+    if (specialtyId) {
+      const items = await algorithms.listEquipmentBySpecialtyId(all, specialtyId, parseJsonArray);
+      res.json(items);
+      return;
+    }
     res.json(await allEquipment());
   } catch (error) {
     next(error);
@@ -737,41 +763,29 @@ app.post("/api/admin/equipment", adminUploadMiddleware, async (req, res, next) =
       return;
     }
 
-    const baseId = slugify(body.title) || "equipment";
-    let equipmentId = baseId;
-    let suffix = 1;
-    while (await get("SELECT id FROM equipment WHERE id = ?", [equipmentId])) {
-      suffix += 1;
-      equipmentId = `${baseId}-${suffix}`;
-    }
-
-    await run(
-      `INSERT INTO equipment
-        (id, specialty_id, title, type, short, description, features_json, model, environment, variant, hotspots_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        equipmentId,
-        body.specialtyId,
-        body.title,
-        body.type,
-        body.short,
-        body.description,
-        JSON.stringify(body.features),
-        model,
-        body.environment,
-        body.variant,
-        JSON.stringify(body.hotspots),
-      ],
-    );
+    const created = await algorithms.createEquipmentRecord({
+      run,
+      get,
+      slugify,
+      body,
+      modelPathOnDisk: req.file ? req.file.path : null,
+      modelPublicPath: model,
+    });
 
     res.status(201).json({
-      id: equipmentId,
-      title: body.title,
-      url: equipmentUrl(req, equipmentId),
+      id: created.id,
+      title: created.title,
+      modelFileSize: created.modelFileSize,
+      modelFileHash: created.modelFileHash,
+      url: equipmentUrl(req, created.id),
     });
   } catch (error) {
     if (req.file) {
       await fsp.unlink(req.file.path).catch(() => {});
+    }
+    if (error.message === "SPECIALTY_NOT_FOUND") {
+      res.status(400).json({ error: "Выбрана неизвестная специальность." });
+      return;
     }
     next(error);
   }
@@ -818,34 +832,30 @@ app.put("/api/admin/equipment/:equipmentId", validateEquipmentIdParam, adminUplo
       return;
     }
 
-    await run(
-      `UPDATE equipment
-       SET specialty_id = ?, title = ?, type = ?, short = ?, description = ?,
-           features_json = ?, model = ?, environment = ?, variant = ?, hotspots_json = ?
-       WHERE id = ?`,
-      [
-        body.specialtyId,
-        body.title,
-        body.type,
-        body.short,
-        body.description,
-        JSON.stringify(body.features),
-        model,
-        body.environment,
-        body.variant,
-        JSON.stringify(body.hotspots),
-        req.params.equipmentId,
-      ],
-    );
+    const updated = await algorithms.updateEquipmentRecord({
+      run,
+      get,
+      modelsPublicDir,
+      equipmentId: req.params.equipmentId,
+      body: { ...body, model },
+      newModelPathOnDisk: req.file ? req.file.path : null,
+      newModelPublicPath: req.file ? model : null,
+    });
 
     res.json({
-      id: req.params.equipmentId,
-      title: body.title,
-      url: equipmentUrl(req, req.params.equipmentId),
+      id: updated.id,
+      title: updated.title,
+      modelFileSize: updated.modelFileSize,
+      modelFileHash: updated.modelFileHash,
+      url: equipmentUrl(req, updated.id),
     });
   } catch (error) {
     if (req.file) {
       await fsp.unlink(req.file.path).catch(() => {});
+    }
+    if (error.message === "NOT_FOUND") {
+      res.status(404).json({ error: "Модель не найдена." });
+      return;
     }
     next(error);
   }
@@ -863,14 +873,14 @@ app.delete("/api/admin/equipment/:equipmentId", validateEquipmentIdParam, async 
       return;
     }
 
-    await run("DELETE FROM equipment WHERE id = ?", [req.params.equipmentId]);
+    const deleted = await algorithms.deleteEquipmentCascade({
+      run,
+      get,
+      modelsPublicDir,
+      equipmentId: req.params.equipmentId,
+    });
 
-    if (existing.model && existing.model.startsWith("/models/")) {
-      const filePath = path.join(modelsPublicDir, path.basename(existing.model));
-      await fsp.unlink(filePath).catch(() => {});
-    }
-
-    res.json({ id: req.params.equipmentId, deleted: true });
+    res.json(deleted);
   } catch (error) {
     next(error);
   }
@@ -886,6 +896,21 @@ app.get(["/styles.css", "/equipment/styles.css"], (_req, res) => {
 
 app.get(["/data/equipment-data.js", "/equipment/data/equipment-data.js"], (_req, res) => {
   res.sendFile(path.join(rootDir, "data", "equipment-data.js"));
+});
+
+app.get("/catalog/:equipmentId", validateEquipmentIdParam, async (req, res, next) => {
+  try {
+    const equipment = await findEquipment(req.params.equipmentId);
+    if (!equipment) {
+      res.status(404).send("Equipment not found");
+      return;
+    }
+
+    await appendScanLog(req, equipment);
+    res.redirect(302, `/view.html?id=${encodeURIComponent(equipment.id)}&scan=1`);
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get("/view.html", async (req, res, next) => {

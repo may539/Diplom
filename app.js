@@ -1,4 +1,5 @@
 const specialtyGrid = document.querySelector("#specialty-grid");
+const specialtyTreeRoot = document.querySelector("#specialty-tree");
 const equipmentList = document.querySelector("#equipment-list");
 const activeSpecialtyLabel = document.querySelector("#active-specialty-label");
 const equipmentCount = document.querySelector("#equipment-count");
@@ -176,7 +177,33 @@ function setModelCameraRadius(nextRadius) {
   syncZoomControls();
 }
 
+async function renderSpecialtyTree() {
+  if (!specialtyTreeRoot || isFileMode || !window.SpecialtyTreeAlgorithm) {
+    return;
+  }
+
+  try {
+    const payload = await window.SpecialtyTreeAlgorithm.fetchSpecialtyTree("/api/specialties/tree");
+    specialtyTreeRoot.innerHTML = window.SpecialtyTreeAlgorithm.renderSpecialtyTreeHtml(payload.tree, {
+      isAvailable: isSpecialtyAvailable,
+    });
+    specialtyTreeRoot.hidden = false;
+    if (specialtyGrid) {
+      specialtyGrid.hidden = true;
+    }
+  } catch (error) {
+    specialtyTreeRoot.innerHTML = "";
+    specialtyTreeRoot.hidden = true;
+    if (specialtyGrid) {
+      specialtyGrid.hidden = false;
+    }
+  }
+}
+
 function renderSpecialties() {
+  if (specialtyGrid) {
+    specialtyGrid.hidden = false;
+  }
   specialtyGrid.innerHTML = specialties
     .map((specialty) => {
       const available = isSpecialtyAvailable(specialty.id);
@@ -194,6 +221,52 @@ function renderSpecialties() {
       `;
     })
     .join("");
+}
+
+async function selectSpecialtyAndLoadCatalog(specialtyId) {
+  if (!isSpecialtyAvailable(specialtyId)) {
+    return;
+  }
+
+  activeSpecialtyId = specialtyId;
+  const specialty = findSpecialty(specialtyId);
+
+  if (!isFileMode && window.CatalogRenderAlgorithm) {
+    try {
+      const items = await window.CatalogRenderAlgorithm.loadAndRenderCatalog(specialtyId, {
+        equipmentListEl: equipmentList,
+        setActiveEquipmentId: (id) => {
+          activeEquipmentId = id;
+        },
+        applyEquipmentToViewer: async (equipment) => {
+          activeEquipmentDetail = equipment;
+          equipmentDetailError = false;
+          renderActiveEquipment(equipment);
+          setEquipmentRoute(equipment.id);
+          await refreshActiveEquipmentFromApi();
+        },
+        showEmptyCatalog: () => {
+          renderEquipmentNotFound();
+        },
+      });
+      specialties = specialties.map((entry) =>
+        entry.id === specialtyId ? { ...entry, equipment: items } : entry,
+      );
+      activeSpecialtyLabel.textContent = specialty.code;
+      equipmentCount.textContent = `${items.length} объекта`;
+      syncActiveStates();
+      return;
+    } catch (error) {
+      // fallback to embedded catalog below
+    }
+  }
+
+  activeEquipmentId = specialty.equipment[0]?.id || "";
+  if (activeEquipmentId) {
+    setEquipmentRoute(activeEquipmentId);
+    await refreshActiveEquipmentFromApi();
+  }
+  render();
 }
 
 function renderEquipmentList(specialty) {
@@ -681,18 +754,18 @@ async function loadData() {
   }
 }
 
-specialtyGrid.addEventListener("click", async (event) => {
+specialtyTreeRoot?.addEventListener("click", async (event) => {
+  const node = event.target.closest("[data-specialty]");
+  if (!node) return;
+  await selectSpecialtyAndLoadCatalog(node.dataset.specialty);
+  document.querySelector("#viewer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+specialtyGrid?.addEventListener("click", async (event) => {
   const card = event.target.closest("[data-specialty]");
   if (!card) return;
-  if (!isSpecialtyAvailable(card.dataset.specialty)) return;
-
-  const specialty = findSpecialty(card.dataset.specialty);
-  activeSpecialtyId = specialty.id;
-  activeEquipmentId = specialty.equipment[0].id;
-  setEquipmentRoute(activeEquipmentId);
-  await refreshActiveEquipmentFromApi();
-  render();
-  document.querySelector("#viewer").scrollIntoView({ behavior: "smooth", block: "start" });
+  await selectSpecialtyAndLoadCatalog(card.dataset.specialty);
+  document.querySelector("#viewer")?.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 equipmentList.addEventListener("click", async (event) => {
@@ -890,6 +963,7 @@ zoomResetButton.addEventListener("click", () => {
 async function refreshCatalogView() {
   await loadData();
   initFromLocation();
+  await renderSpecialtyTree();
   renderSpecialties();
   await refreshActiveEquipmentFromApi();
   render();
