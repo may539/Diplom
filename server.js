@@ -384,18 +384,28 @@ async function findEquipment(equipmentId) {
   return row ? normalizeEquipmentRow(row) : null;
 }
 
-function getLanAddress() {
-  const interfaces = os.networkInterfaces();
+function isDockerBridgeIp(ip) {
+  return /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
+}
 
-  for (const entries of Object.values(interfaces)) {
+function getLanAddress() {
+  const candidates = [];
+
+  for (const entries of Object.values(os.networkInterfaces())) {
     for (const entry of entries || []) {
       if (entry.family === "IPv4" && !entry.internal) {
-        return entry.address;
+        candidates.push(entry.address);
       }
     }
   }
 
-  return "127.0.0.1";
+  const homeLan = candidates.find((ip) => /^192\.168\./.test(ip) || /^10\./.test(ip));
+  if (homeLan) {
+    return homeLan;
+  }
+
+  const nonDocker = candidates.find((ip) => !isDockerBridgeIp(ip));
+  return nonDocker || candidates[0] || "127.0.0.1";
 }
 
 function isLoopbackHost(hostname) {
@@ -407,20 +417,37 @@ function resolvePublicBaseUrl(req) {
     return process.env.PUBLIC_BASE_URL.replace(/\/$/, "");
   }
 
-  const protocol = String(req.headers["x-forwarded-proto"] || req.protocol || "http").split(",")[0];
-  const requestHost = req.get("host") || `${getLanAddress()}:${port}`;
-  const baseUrl = new URL(`${protocol}://${requestHost}`);
-
-  if (isLoopbackHost(baseUrl.hostname)) {
-    baseUrl.hostname = getLanAddress();
+  const clientOrigin = String(req.get("x-public-origin") || "").trim();
+  if (clientOrigin) {
+    try {
+      const parsed = new URL(clientOrigin);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        return parsed.origin;
+      }
+    } catch (error) {
+      // ignore invalid client origin
+    }
   }
 
-  return baseUrl.toString().replace(/\/$/, "");
+  const protocol = String(req.headers["x-forwarded-proto"] || req.protocol || "http").split(",")[0].trim();
+  const requestHost = (req.get("x-forwarded-host") || req.get("host") || "").trim();
+
+  if (requestHost) {
+    const baseUrl = new URL(`${protocol}://${requestHost}`);
+    if (isLoopbackHost(baseUrl.hostname)) {
+      const lanIp = getLanAddress();
+      if (!isLoopbackHost(lanIp) && !isDockerBridgeIp(lanIp)) {
+        baseUrl.hostname = lanIp;
+      }
+    }
+    return baseUrl.origin;
+  }
+
+  return `http://${getLanAddress()}:${port}`;
 }
 
 function equipmentUrl(req, equipmentId) {
-  const base = resolvePublicBaseUrl(req);
-  const url = new URL(base.endsWith("/") ? base : `${base}/`);
+  const url = new URL("/view.html", `${resolvePublicBaseUrl(req)}/`);
   url.searchParams.set("id", equipmentId);
   url.searchParams.set("scan", "1");
   return url.href;
@@ -501,10 +528,6 @@ app.get("/api/equipment/:equipmentId", validateEquipmentIdParam, async (req, res
 });
 
 app.get("/api/qr/:equipmentId", validateEquipmentIdParam, async (req, res, next) => {
-  if (!assertAdmin(req, res)) {
-    return;
-  }
-
   try {
     const equipment = await findEquipment(req.params.equipmentId);
     if (!equipment) {
@@ -716,6 +739,30 @@ app.get(["/data/equipment-data.js", "/equipment/data/equipment-data.js"], (_req,
   res.sendFile(path.join(rootDir, "data", "equipment-data.js"));
 });
 
+app.get("/view.html", async (req, res, next) => {
+  try {
+    const equipmentId = String(req.query.id || "").trim();
+    if (!equipmentId || !isValidEquipmentId(equipmentId)) {
+      res.status(400).send("Invalid equipment id");
+      return;
+    }
+
+    const equipment = await findEquipment(equipmentId);
+    if (!equipment) {
+      res.status(404).send("Equipment not found");
+      return;
+    }
+
+    if (req.query.scan === "1") {
+      await appendScanLog(req, equipment);
+    }
+
+    res.sendFile(path.join(rootDir, "view.html"));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.use("/vendor", express.static(path.join(rootDir, "vendor"), { index: false }));
 app.use("/models", express.static(modelsPublicDir, modelStaticOptions));
 app.use("/models", express.static(path.join(rootDir, "models"), modelStaticOptions));
@@ -733,6 +780,8 @@ app.get("/", async (req, res, next) => {
       const equipment = await findEquipment(String(equipmentId));
       if (equipment) {
         await appendScanLog(req, equipment);
+        res.redirect(302, `/view.html?id=${encodeURIComponent(String(equipmentId))}&scan=1`);
+        return;
       }
     }
     sendIndex(res);

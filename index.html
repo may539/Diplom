@@ -10,6 +10,7 @@
     <title>3D визуализация учебного оборудования</title>
     <link rel="stylesheet" href="styles.css" />
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+    <script src="model-viewer-setup.js"></script>
     <script src="data/equipment-data.js"></script>
     <script defer src="app.js"></script>
   </head>
@@ -226,15 +227,16 @@
       <div class="modal__content">
         <button class="modal__close" type="button" data-close-modal aria-label="Закрыть">×</button>
         <p class="eyebrow">О нас</p>
-        <h2 id="about-modal-title">3D-визуализация учебного оборудования</h2>
+        <h2 id="about-modal-title">Интерактивный каталог 3D-моделей</h2>
         <p>
-          Дипломный проект для учебного заведения: каталог 3D-моделей с QR-доступом к
-          интерактивному просмотру прямо в браузере.
+          Это учебный веб-каталог учебного оборудования, созданный для визуализации и повышения
+          качества обучения студентов. Вы можете просматривать трёхмерные модели приборов и стендов,
+          изучать описания и открывать нужный объект по QR-коду с мобильного телефона.
         </p>
         <ul class="about-list">
-          <li>Данные оборудования хранятся в SQLite.</li>
-          <li>3D-модели открываются через &lt;model-viewer&gt;.</li>
-          <li>QR-коды формируются в админ-панели для печати и размещения на стендах.</li>
+          <li>Каталог по специальностям ОИБ, ПД и ЗЕМ</li>
+          <li>Интерактивный просмотр GLB-моделей в браузере</li>
+          <li>QR-доступ к полноэкранному режиму для лабораторий и стендов</li>
         </ul>
       </div>
     </div>

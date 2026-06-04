@@ -4,7 +4,6 @@ const statusText = document.querySelector("#form-status");
 const qrModal = document.querySelector("#qr-modal");
 const qrCanvas = document.querySelector("#qr-canvas");
 const qrCaption = document.querySelector("#qr-caption");
-const qrDirectLink = document.querySelector("#qr-direct-link");
 const printQrButton = document.querySelector("#print-qr");
 const toastRegion = document.querySelector("#admin-toast-region");
 
@@ -180,10 +179,13 @@ equipmentForm.addEventListener("submit", async (event) => {
     }
     showToast("Данные сохранены", "success");
 
-    drawQrCode(data.url);
-    qrCaption.textContent = `${data.title} — QR-код для распечатки и размещения на учебном оборудовании.`;
-    qrDirectLink.href = data.url;
-    qrDirectLink.textContent = data.url;
+    const qrResponse = await fetch(`/api/qr/${encodeURIComponent(data.id)}`, {
+      headers: authHeaders(),
+    });
+    const qrPayload = qrResponse.ok ? await qrResponse.json() : data;
+
+    drawQrCode(qrPayload.url || data.url);
+    qrCaption.textContent = `${data.title} — отсканируйте QR: на телефоне откроется полноэкранный просмотр 3D-модели.`;
     openModal();
     setStatus("Модель добавлена. QR-код готов к печати.");
     equipmentForm.reset();
