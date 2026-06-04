@@ -8,8 +8,10 @@
       content="Интерактивная трехмерная визуализация учебного оборудования для специальностей ОИБ, ПД и ЗЕМ."
     />
     <title>3D визуализация учебного оборудования</title>
+    <link rel="stylesheet" href="normalize.css" />
     <link rel="stylesheet" href="styles.css" />
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+    <script src="model-viewer-setup.js"></script>
     <script src="data/equipment-data.js"></script>
     <script defer src="app.js"></script>
   </head>
@@ -18,13 +20,27 @@
       <nav class="topbar" aria-label="Основная навигация">
         <a class="brand" href="#top" aria-label="На главную">
           <span class="brand__mark">3D</span>
-          <span>Учебное оборудование</span>
+          <span class="brand__title">Учебное оборудование Алтайского Промышленно-Экономического Колледжа</span>
         </a>
-        <div class="topbar__links">
-          <a href="#specialties">Специальности</a>
-          <a href="#viewer">3D модель</a>
-          <a href="#qr">QR</a>
-          <a href="/admin.html">Админ</a>
+        <button
+          class="burger"
+          id="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="topbar-panel"
+          aria-label="Открыть меню"
+        >
+          <span class="burger__line" aria-hidden="true"></span>
+          <span class="burger__line" aria-hidden="true"></span>
+          <span class="burger__line" aria-hidden="true"></span>
+        </button>
+        <div class="topbar__panel" id="topbar-panel">
+          <div class="topbar__links">
+            <a href="#specialties">Специальности</a>
+            <a href="#viewer">3D модель</a>
+            <a href="#qr">QR</a>
+          </div>
+          <button class="button button--ghost topbar__about" type="button" id="about-open">О нас</button>
         </div>
       </nav>
 
@@ -91,7 +107,7 @@
               <span id="active-specialty-label">ОИБ</span>
               <span id="equipment-count">0 объектов</span>
             </div>
-            <div id="equipment-list"></div>
+            <div class="equipment-list__scroll" id="equipment-list"></div>
           </aside>
 
           <article class="viewer-card">
@@ -101,8 +117,6 @@
                 class="viewer-shell__model"
                 camera-controls
                 touch-action="pan-y"
-                shadow-intensity="1"
-                exposure="1"
                 alt=""
                 aria-hidden="true"
               ></model-viewer>
@@ -180,18 +194,76 @@
     </main>
 
     <footer class="footer">
-      <p>Статический сайт: подходит для размещения на Linux-сервере учебного заведения.</p>
+      <div class="footer__grid">
+        <p class="footer__lead">
+          Интерактивный каталог 3D-моделей учебного оборудования Алтайского Промышленно-Экономического
+          Колледжа для дистанционного и очного обучения.
+        </p>
+        <nav class="footer__legal" aria-label="Правовая информация">
+          <a href="#privacy-policy">Политика обработки персональных данных</a>
+          <a href="#privacy-consent">Согласие на обработку персональных данных</a>
+          <a href="#privacy-cookies">Политика использования файлов cookie</a>
+        </nav>
+        <section class="footer__policy" id="privacy-policy" aria-labelledby="privacy-policy-title">
+          <h2 id="privacy-policy-title">Политика обработки персональных данных</h2>
+          <p>
+            Настоящая политика определяет порядок обработки и защиты персональных данных пользователей
+            информационного ресурса учебного заведения в соответствии с Федеральным законом № 152-ФЗ «О
+            персональных данных» (в редакции, действующей в 2026 году). Оператор обрабатывает данные,
+            необходимые для предоставления доступа к каталогу 3D-моделей, ведения статистики посещений по
+            QR-кодам и обеспечения информационной безопасности сервиса.
+          </p>
+        </section>
+        <section class="footer__policy" id="privacy-consent" aria-labelledby="privacy-consent-title">
+          <h2 id="privacy-consent-title">Согласие на обработку персональных данных</h2>
+          <p>
+            Продолжая использование сайта, пользователь подтверждает согласие на обработку персональных
+            данных в объёме, указанном в политике: технические сведения (IP-адрес, тип устройства, данные
+            браузера), сведения о просмотре учебных 3D-моделей и обращениях через QR-ссылки. Согласие может
+            быть отозвано путём направления письменного обращения в администрацию колледжа.
+          </p>
+        </section>
+        <section class="footer__policy" id="privacy-cookies" aria-labelledby="privacy-cookies-title">
+          <h2 id="privacy-cookies-title">Политика использования файлов cookie</h2>
+          <p>
+            Сайт может использовать технические cookie и аналогичные механизмы локального хранения для
+            корректной работы интерфейса, сохранения выбранных настроек просмотра и повышения устойчивости
+            сервиса. Пользователь вправе ограничить использование cookie в настройках браузера; при этом
+            отдельные функции каталога могут работать ограниченно.
+          </p>
+        </section>
+      </div>
+      <p class="footer__copy">© 2026 Разработка интерактивного сайта для учебного заведения.</p>
     </footer>
+
+    <div class="modal" id="about-modal" aria-hidden="true" role="dialog" aria-labelledby="about-modal-title">
+      <div class="modal__overlay" data-close-modal></div>
+      <div class="modal__content modal__content--about">
+        <button class="modal__close" type="button" data-close-modal aria-label="Закрыть">×</button>
+        <p class="eyebrow">О проекте</p>
+        <h2 id="about-modal-title">Интерактивный каталог 3D-моделей</h2>
+        <p class="about-modal__text">
+          Это учебный веб-каталог учебного оборудования Алтайского Промышленно-Экономического Колледжа.
+          Студенты и преподаватели могут просматривать трёхмерные модели приборов и стендов, изучать
+          описания и открывать нужный объект по QR-коду прямо с мобильного телефона.
+        </p>
+        <ul class="about-modal__list">
+          <li>Каталог по специальностям ОИБ, ПД и ЗЕМ</li>
+          <li>Интерактивный просмотр GLB-моделей в браузере</li>
+          <li>QR-доступ к полноэкранному режиму для лабораторий и стендов</li>
+        </ul>
+        <button class="button button--primary" type="button" data-close-modal>Понятно</button>
+      </div>
+    </div>
 
     <div class="modal" id="qr-modal" aria-hidden="true" role="dialog" aria-labelledby="qr-modal-title">
       <div class="modal__overlay" data-close-modal></div>
       <div class="modal__content">
         <button class="modal__close" type="button" data-close-modal aria-label="Закрыть">×</button>
         <p class="eyebrow">QR-доступ</p>
-        <h2 id="qr-modal-title">Ссылка на модель</h2>
+        <h2 id="qr-modal-title">QR для мобильного просмотра</h2>
         <img id="qr-image" src="" alt="QR-код для выбранного оборудования" />
         <p id="qr-caption"></p>
-        <a class="qr-link" id="qr-direct-link" href="#">Открыть ссылку</a>
       </div>
     </div>
   </body>

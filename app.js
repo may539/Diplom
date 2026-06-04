@@ -19,8 +19,11 @@ const zoomResetButton = document.querySelector("#zoom-reset");
 const qrModal = document.querySelector("#qr-modal");
 const qrImage = document.querySelector("#qr-image");
 const qrCaption = document.querySelector("#qr-caption");
-const qrDirectLink = document.querySelector("#qr-direct-link");
 const qrButtons = document.querySelectorAll("#qr-open, #qr-open-secondary");
+const aboutModal = document.querySelector("#about-modal");
+const aboutOpenButton = document.querySelector("#about-open");
+const navToggle = document.querySelector("#nav-toggle");
+const topbarPanel = document.querySelector("#topbar-panel");
 const viewerShell = document.querySelector("#viewer-shell");
 const glbModelViewer = document.querySelector("#equipment-model-viewer");
 const isFileMode = window.location.protocol === "file:";
@@ -92,12 +95,6 @@ function readEquipmentIdFromLocation() {
   }
 
   return hashParams.get("equipment") || searchParams.get("equipment");
-}
-
-function buildEquipmentShareUrl(equipmentId) {
-  const root = new URL("/", window.location.origin);
-  root.searchParams.set("id", equipmentId);
-  return root.toString();
 }
 
 function usesGlbModel(equipment) {
@@ -261,6 +258,7 @@ function renderActiveEquipment(equipment) {
 
   if (glbModelViewer) {
     if (glb) {
+      configureModelViewer(glbModelViewer);
       glbModelViewer.src = equipment.model;
       glbModelViewer.alt = equipment.title;
       glbModelViewer.setAttribute("title", equipment.title);
@@ -332,11 +330,9 @@ function initFromLocation() {
 async function openQrModal() {
   const { equipment } = findEquipment(activeEquipmentId);
 
-  qrCaption.textContent = "Генерация QR-кода на сервере...";
+  qrCaption.textContent = "Генерация QR-кода...";
   qrImage.hidden = false;
   qrImage.removeAttribute("src");
-  qrDirectLink.removeAttribute("href");
-  qrDirectLink.textContent = "";
   qrModal.classList.add("is-open");
   qrModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
@@ -344,19 +340,12 @@ async function openQrModal() {
   if (isFileMode) {
     qrImage.hidden = true;
     qrCaption.textContent =
-      "Для корректного QR-кода запустите сервер командой npm start и откройте http://localhost:8080.";
-    qrDirectLink.href = "http://localhost:8080";
-    qrDirectLink.textContent = "Открыть серверную версию";
+      "Для корректного QR-кода запустите сервер командой npm start и откройте сайт через Node.js.";
     return;
   }
 
   try {
-    const shareUrl = buildEquipmentShareUrl(equipment.id);
-    const response = await fetch("/api/qr/render", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: shareUrl }),
-    });
+    const response = await fetch(`/api/qr/${encodeURIComponent(equipment.id)}`);
 
     if (!response.ok) {
       throw new Error("QR API request failed");
@@ -364,9 +353,7 @@ async function openQrModal() {
 
     const qr = await response.json();
     qrImage.src = qr.imageDataUrl;
-    qrCaption.textContent = `${equipment.title}: отсканируйте код, чтобы открыть эту 3D-модель.`;
-    qrDirectLink.href = qr.url;
-    qrDirectLink.textContent = qr.url;
+    qrCaption.textContent = `${equipment.title}: отсканируйте код — откроется полноэкранный просмотр 3D-модели.`;
   } catch (error) {
     qrCaption.textContent = "Не удалось получить QR-код с сервера.";
   }
@@ -376,6 +363,73 @@ function closeQrModal() {
   qrModal.classList.remove("is-open");
   qrModal.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
+}
+
+function openAboutModal() {
+  aboutModal.classList.add("is-open");
+  aboutModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  closeNavPanel();
+}
+
+function closeAboutModal() {
+  aboutModal.classList.remove("is-open");
+  aboutModal.setAttribute("aria-hidden", "true");
+  if (!qrModal.classList.contains("is-open")) {
+    document.body.classList.remove("modal-open");
+  }
+}
+
+function closeNavPanel() {
+  if (!navToggle || !topbarPanel) {
+    return;
+  }
+  navToggle.setAttribute("aria-expanded", "false");
+  topbarPanel.classList.remove("is-open");
+  document.body.classList.remove("nav-open");
+}
+
+function toggleNavPanel() {
+  if (!navToggle || !topbarPanel) {
+    return;
+  }
+  const willOpen = !topbarPanel.classList.contains("is-open");
+  navToggle.setAttribute("aria-expanded", String(willOpen));
+  topbarPanel.classList.toggle("is-open", willOpen);
+  document.body.classList.toggle("nav-open", willOpen);
+}
+
+function initNavigation() {
+  if (navToggle) {
+    navToggle.addEventListener("click", toggleNavPanel);
+  }
+
+  if (aboutOpenButton) {
+    aboutOpenButton.addEventListener("click", openAboutModal);
+  }
+
+  aboutModal?.addEventListener("click", (event) => {
+    if (event.target.matches("[data-close-modal]")) {
+      closeAboutModal();
+    }
+  });
+
+  topbarPanel?.querySelectorAll(".topbar__links a").forEach((link) => {
+    link.addEventListener("click", closeNavPanel);
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeAboutModal();
+      closeNavPanel();
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (window.matchMedia("(min-width: 56.25em)").matches) {
+      closeNavPanel();
+    }
+  });
 }
 
 function applyInitialViewOptions() {
@@ -479,6 +533,8 @@ qrModal.addEventListener("click", (event) => {
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeQrModal();
+    closeAboutModal();
+    closeNavPanel();
   }
 });
 
@@ -561,6 +617,10 @@ zoomResetButton.addEventListener("click", () => {
 async function init() {
   try {
     setZoom(1);
+    initNavigation();
+    if (glbModelViewer) {
+      configureModelViewer(glbModelViewer);
+    }
     await loadData();
     const hintedId = readEquipmentIdFromLocation();
     if (!isFileMode && hintedId) {

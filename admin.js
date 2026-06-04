@@ -4,7 +4,6 @@ const statusText = document.querySelector("#form-status");
 const qrModal = document.querySelector("#qr-modal");
 const qrCanvas = document.querySelector("#qr-canvas");
 const qrCaption = document.querySelector("#qr-caption");
-const qrDirectLink = document.querySelector("#qr-direct-link");
 const printQrButton = document.querySelector("#print-qr");
 
 function setStatus(text, isError = false) {
@@ -109,10 +108,12 @@ form.addEventListener("submit", async (event) => {
       throw new Error(data.error || "Ошибка добавления модели.");
     }
 
-    drawQrCode(data.url);
-    qrCaption.textContent = `${data.title} — QR-код для распечатки и размещения на учебном оборудовании.`;
-    qrDirectLink.href = data.url;
-    qrDirectLink.textContent = data.url;
+    const qrResponse = await fetch(`/api/qr/${encodeURIComponent(data.id)}`);
+    const qrPayload = qrResponse.ok ? await qrResponse.json() : data;
+    const qrTargetUrl = qrPayload.url || data.url;
+
+    drawQrCode(qrTargetUrl);
+    qrCaption.textContent = `${data.title} — QR-код для распечатки. После сканирования откроется полноэкранный просмотр 3D-модели.`;
     openModal();
     setStatus("Модель добавлена. QR-код готов к печати.");
     form.reset();

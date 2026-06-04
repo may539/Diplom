@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#08111f" />
+    <title>3D-модель · учебное оборудование</title>
+    <link rel="stylesheet" href="normalize.css" />
+    <link rel="stylesheet" href="view.css" />
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+    <script src="model-viewer-setup.js"></script>
+    <script defer src="view.js"></script>
+  </head>
+  <body class="view-page">
+    <header class="view-page__bar">
+      <p class="view-page__type" id="view-type"></p>
+      <h1 class="view-page__title" id="view-title">Загрузка модели…</h1>
+    </header>
+
+    <main class="view-page__stage" id="view-stage">
+      <model-viewer
+        id="view-model"
+        camera-controls
+        touch-action="pan-y"
+        auto-rotate
+        rotation-per-second="12deg"
+        alt=""
+        aria-label="Интерактивная 3D-модель учебного оборудования"
+      ></model-viewer>
+      <p class="view-page__hint">Поверните и приблизьте модель жестами или мышью</p>
+    </main>
+
+    <p class="view-page__error" id="view-error" hidden></p>
+  </body>
+</html>

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "check": "node --check app.js && node --check admin.js && node --check server.js",
+    "check": "node --check app.js && node --check admin.js && node --check server.js && node --check view.js && node --check model-viewer-setup.js",
     "test": "npm run check && node --check scripts/verify-data-fallback.js && node scripts/verify-data-fallback.js"
   },
   "repository": {

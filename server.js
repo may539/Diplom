@@ -244,8 +244,9 @@ function resolvePublicBaseUrl(req) {
   return baseUrl.toString().replace(/\/$/, "");
 }
 
-function equipmentUrl(req, equipmentId) {
-  return `${resolvePublicBaseUrl(req)}/equipment/${encodeURIComponent(equipmentId)}?scan=1`;
+function equipmentViewUrl(req, equipmentId) {
+  const base = resolvePublicBaseUrl(req);
+  return `${base}/view.html?id=${encodeURIComponent(equipmentId)}&scan=1`;
 }
 
 async function appendScanLog(req, equipment) {
@@ -338,7 +339,7 @@ app.get("/api/qr/:equipmentId", async (req, res, next) => {
       return;
     }
 
-    const url = equipmentUrl(req, equipment.id);
+    const url = equipmentViewUrl(req, equipment.id);
     const imageDataUrl = await QRCode.toDataURL(url, {
       errorCorrectionLevel: "M",
       margin: 2,
@@ -425,8 +426,32 @@ app.post("/api/admin/equipment", async (req, res, next) => {
     res.status(201).json({
       id: equipmentId,
       title: title.trim(),
-      url: equipmentUrl(req, equipmentId),
+      url: equipmentViewUrl(req, equipmentId),
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/view.html", async (req, res, next) => {
+  try {
+    const equipmentId = String(req.query.id || "").trim();
+    if (!equipmentId) {
+      res.status(400).send("Укажите параметр id в адресе.");
+      return;
+    }
+
+    const equipment = await findEquipment(equipmentId);
+    if (!equipment) {
+      res.status(404).send("Equipment not found");
+      return;
+    }
+
+    if (req.query.scan === "1") {
+      await appendScanLog(req, equipment);
+    }
+
+    res.sendFile(path.join(rootDir, "view.html"));
   } catch (error) {
     next(error);
   }
