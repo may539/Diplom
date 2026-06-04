@@ -25,7 +25,7 @@ async function init() {
   }
 
   try {
-    const response = await fetch(`/api/equipment/${encodeURIComponent(equipmentId)}`);
+    const response = await fetch(`/api/equipment/${encodeURIComponent(equipmentId)}`, { cache: "no-store" });
     if (!response.ok) {
       showError("Объект не найден в каталоге.");
       return;
@@ -35,10 +35,14 @@ async function init() {
     viewType.textContent = equipment.type || "";
     viewTitle.textContent = equipment.title;
     viewModel.alt = equipment.title;
-    if (typeof applyModelCrossOrigin === "function") {
-      applyModelCrossOrigin(viewModel, equipment.model);
+    if (typeof setModelViewerSrc === "function") {
+      await setModelViewerSrc(viewModel, equipment.model);
+    } else {
+      if (typeof applyModelCrossOrigin === "function") {
+        applyModelCrossOrigin(viewModel, equipment.model);
+      }
+      viewModel.src = equipment.model;
     }
-    viewModel.src = equipment.model;
   } catch (error) {
     showError("Не удалось загрузить модель. Проверьте подключение к серверу.");
   }

@@ -12,6 +12,7 @@ const multer = require("multer");
 const QRCode = require("qrcode");
 const sqlite3 = require("sqlite3").verbose();
 const algorithms = require("./server/algorithms");
+const { normalizeGlbInPlace } = require("./lib/normalize-glb");
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
@@ -700,6 +701,33 @@ function adminUploadMiddleware(req, res, next) {
   });
 }
 
+function modelPathFromUrl(modelUrl) {
+  const value = String(modelUrl || "").trim();
+  if (!value.startsWith("/models/")) {
+    return null;
+  }
+
+  const filename = path.basename(value);
+  if (!filename.toLowerCase().endsWith(".glb")) {
+    return null;
+  }
+
+  return path.join(modelsPublicDir, filename);
+}
+
+async function processUploadedGlb(file) {
+  if (!file?.path) {
+    return null;
+  }
+
+  try {
+    return await normalizeGlbInPlace(file.path);
+  } catch (error) {
+    console.error("GLB normalize failed:", error);
+    return { converted: false, reason: "error", message: error.message };
+  }
+}
+
 app.get("/api/admin/equipment", async (req, res, next) => {
   if (!assertAdmin(req, res)) {
     return;
@@ -742,7 +770,9 @@ app.post("/api/admin/equipment", adminUploadMiddleware, async (req, res, next) =
   try {
     const body = parseEquipmentFormBody(req);
     let model = body.model;
+    let glbNormalize = null;
     if (req.file) {
+      glbNormalize = await processUploadedGlb(req.file);
       model = `/models/${req.file.filename}`;
     }
 
@@ -778,6 +808,7 @@ app.post("/api/admin/equipment", adminUploadMiddleware, async (req, res, next) =
       modelFileSize: created.modelFileSize,
       modelFileHash: created.modelFileHash,
       url: equipmentUrl(req, created.id),
+      glbNormalized: Boolean(glbNormalize?.converted),
     });
   } catch (error) {
     if (req.file) {
@@ -790,6 +821,39 @@ app.post("/api/admin/equipment", adminUploadMiddleware, async (req, res, next) =
     next(error);
   }
 });
+
+app.post(
+  "/api/admin/equipment/:equipmentId/normalize-glb",
+  validateEquipmentIdParam,
+  async (req, res, next) => {
+    if (!assertAdmin(req, res)) {
+      return;
+    }
+
+    try {
+      const existing = await findEquipment(req.params.equipmentId);
+      if (!existing) {
+        res.status(404).json({ error: "Модель не найдена." });
+        return;
+      }
+
+      const filePath = modelPathFromUrl(existing.model);
+      if (!filePath) {
+        res.status(400).json({ error: "Для этой записи нет локального GLB на сервере." });
+        return;
+      }
+
+      const glbNormalize = await normalizeGlbInPlace(filePath);
+      res.json({
+        id: existing.id,
+        glbNormalized: Boolean(glbNormalize.converted),
+        reason: glbNormalize.reason,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 app.put("/api/admin/equipment/:equipmentId", validateEquipmentIdParam, adminUploadMiddleware, async (req, res, next) => {
   if (!assertAdmin(req, res)) {
@@ -811,7 +875,9 @@ app.put("/api/admin/equipment/:equipmentId", validateEquipmentIdParam, adminUplo
 
     const body = parseEquipmentFormBody(req);
     let model = body.model || existing.model;
+    let glbNormalize = null;
     if (req.file) {
+      glbNormalize = await processUploadedGlb(req.file);
       model = `/models/${req.file.filename}`;
     }
 
@@ -848,6 +914,7 @@ app.put("/api/admin/equipment/:equipmentId", validateEquipmentIdParam, adminUplo
       modelFileSize: updated.modelFileSize,
       modelFileHash: updated.modelFileHash,
       url: equipmentUrl(req, updated.id),
+      glbNormalized: Boolean(glbNormalize?.converted),
     });
   } catch (error) {
     if (req.file) {

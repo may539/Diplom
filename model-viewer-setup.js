@@ -1,16 +1,7 @@
 /**
  * Освещение для <model-viewer>.
- * Файл neutral.hdr на сервере подгружается автоматически — скачивать его вручную не нужно.
+ * Используем встроенный пресет legacy — он стабильнее для учебных GLB, чем HDR.
  */
-const LOCAL_HDR = "/environments/neutral.hdr";
-const REMOTE_HDR = "https://modelviewer.dev/shared-assets/environments/neutral.hdr";
-
-function resolveLocalHdrUrl() {
-  if (typeof window === "undefined" || !window.location?.origin) {
-    return REMOTE_HDR;
-  }
-  return new URL(LOCAL_HDR, window.location.origin).href;
-}
 
 function useBuiltinLighting(element) {
   element.setAttribute("environment-image", "legacy");
@@ -21,33 +12,12 @@ function useBuiltinLighting(element) {
   element.setAttribute("environment-intensity", "1");
 }
 
-function useHdrLighting(element, hdrUrl) {
-  element.setAttribute("environment-image", hdrUrl);
-  element.removeAttribute("skybox-image");
-  element.setAttribute("exposure", "1");
-  element.setAttribute("shadow-intensity", "1");
-  element.setAttribute("tone-mapping", "aces");
-  element.setAttribute("environment-intensity", "1.1");
-}
-
 function configureModelViewer(element) {
   if (!element) {
     return;
   }
 
   useBuiltinLighting(element);
-
-  const hdrUrl = resolveLocalHdrUrl();
-  fetch(hdrUrl, { method: "HEAD" })
-    .then((response) => {
-      if (!response.ok) {
-        return;
-      }
-      useHdrLighting(element, hdrUrl);
-    })
-    .catch(() => {
-      /* Остаётся встроенное legacy-освещение */
-    });
 }
 
 function fixModelMaterials(element) {
@@ -86,6 +56,30 @@ function fixModelMaterials(element) {
   });
 }
 
+function modelLooksUntextured(element) {
+  const root = element.model || element.scene;
+  if (!root || typeof root.traverse !== "function") {
+    return false;
+  }
+
+  let meshCount = 0;
+  let texturedMeshes = 0;
+
+  root.traverse((node) => {
+    if (!node.isMesh || !node.material) {
+      return;
+    }
+
+    meshCount += 1;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    if (materials.some((material) => material?.map)) {
+      texturedMeshes += 1;
+    }
+  });
+
+  return meshCount > 0 && texturedMeshes === 0;
+}
+
 async function applyLighting(element) {
   configureModelViewer(element);
 
@@ -96,6 +90,7 @@ async function applyLighting(element) {
   }
 
   fixModelMaterials(element);
+  requestAnimationFrame(() => fixModelMaterials(element));
 }
 
 function bindModelViewerLighting(element) {
@@ -126,6 +121,30 @@ function applyModelCrossOrigin(element, modelUrl) {
   }
 }
 
+async function setModelViewerSrc(element, modelUrl) {
+  if (!element || !modelUrl) {
+    return;
+  }
+
+  applyModelCrossOrigin(element, modelUrl);
+  configureModelViewer(element);
+
+  const previousSrc = element.getAttribute("src");
+  if (previousSrc && previousSrc !== modelUrl) {
+    element.removeAttribute("src");
+    try {
+      await element.updateComplete;
+    } catch {
+      // ignore between loads
+    }
+  }
+
+  element.setAttribute("src", modelUrl);
+}
+
 window.configureModelViewer = configureModelViewer;
 window.bindModelViewerLighting = bindModelViewerLighting;
 window.applyModelCrossOrigin = applyModelCrossOrigin;
+window.setModelViewerSrc = setModelViewerSrc;
+window.modelLooksUntextured = modelLooksUntextured;
+window.fixModelMaterials = fixModelMaterials;

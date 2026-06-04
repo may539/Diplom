@@ -203,6 +203,11 @@ async function loadCatalog() {
               <button class="button button--ghost" type="button" data-print-qr="${escapeHtml(item.id)}">
                 Печать QR
               </button>
+              ${
+                String(item.model || "").startsWith("/models/")
+                  ? `<button class="button button--ghost" type="button" data-normalize-glb="${escapeHtml(item.id)}">Исправить текстуры</button>`
+                  : ""
+              }
               <button class="button button--ghost" type="button" data-edit-equipment="${escapeHtml(item.id)}">
                 Изменить
               </button>
@@ -235,6 +240,27 @@ function parseFeatures(value) {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+async function normalizeEquipmentGlb(id) {
+  const response = await fetch(`/api/admin/equipment/${encodeURIComponent(id)}/normalize-glb`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    showToast(data.error || "Не удалось конвертировать GLB.", "error");
+    return;
+  }
+
+  if (data.glbNormalized) {
+    showToast("Текстуры исправлены. Обновите каталог на главной (F5).", "success");
+    sessionStorage.setItem("catalogNeedsReload", "1");
+    return;
+  }
+
+  showToast("Файл уже в актуальном формате или конвертация не требуется.", "success");
 }
 
 async function deleteEquipment(id) {
@@ -318,6 +344,9 @@ equipmentForm.addEventListener("submit", async (event) => {
     if (hasFile) {
       showToast("Файл загружен", "success");
     }
+    if (data.glbNormalized) {
+      showToast("GLB конвертирован в metal/rough — текстуры должны отображаться", "success");
+    }
     showToast(editId ? "Изменения сохранены" : "Данные сохранены", "success");
 
     const qrResponse = await fetch(`/api/qr/${encodeURIComponent(data.id)}`, { headers: authHeaders() });
@@ -344,9 +373,15 @@ cancelEditButton.addEventListener("click", () => {
 
 catalogList?.addEventListener("click", async (event) => {
   const printButton = event.target.closest("[data-print-qr]");
+  const normalizeButton = event.target.closest("[data-normalize-glb]");
   const editButton = event.target.closest("[data-edit-equipment]");
   const deleteButton = event.target.closest("[data-delete-equipment]");
   const items = catalogList._items || [];
+
+  if (normalizeButton) {
+    await normalizeEquipmentGlb(normalizeButton.dataset.normalizeGlb);
+    return;
+  }
 
   if (printButton) {
     const item = items.find((entry) => entry.id === printButton.dataset.printQr);

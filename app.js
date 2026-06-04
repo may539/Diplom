@@ -293,6 +293,16 @@ function renderAnnotation(hotspots, index) {
     annotationPanel.innerHTML = `<strong>${escapeHtml(hotspot.label)}</strong><span>${escapeHtml(hotspot.note)}</span>`;
   } else if (hotspots.length) {
     annotationPanel.innerHTML = "<span>Нажмите на точку на 3D-модели, чтобы открыть пояснение к детали.</span>";
+  } else if (
+    equipmentModelViewer &&
+    typeof modelLooksUntextured === "function" &&
+    modelLooksUntextured(equipmentModelViewer)
+  ) {
+    annotationPanel.innerHTML =
+      "<span>Модель без текстур (белый корпус). В админке откройте объект и нажмите «Исправить текстуры», либо загрузите GLB заново.</span>";
+  } else if (equipmentDetailError) {
+    annotationPanel.innerHTML =
+      "<span>Не удалось обновить карточку с сервера. Показаны данные из каталога.</span>";
   } else {
     annotationPanel.innerHTML = "<span>Для этой модели аннотации не добавлены.</span>";
   }
@@ -417,19 +427,40 @@ function renderActiveEquipment(equipment) {
   equipmentFeatures.innerHTML = (equipment.features || []).map((feature) => `<li>${escapeHtml(feature)}</li>`).join("");
 
   if (equipmentModelViewer) {
-    if (typeof configureModelViewer === "function") {
-      configureModelViewer(equipmentModelViewer);
-    }
     if (typeof bindModelViewerLighting === "function") {
       bindModelViewerLighting(equipmentModelViewer);
     }
-    if (typeof applyModelCrossOrigin === "function") {
-      applyModelCrossOrigin(equipmentModelViewer, equipment.model);
+
+    const applySrc = async () => {
+      if (typeof setModelViewerSrc === "function") {
+        await setModelViewerSrc(equipmentModelViewer, equipment.model);
+      } else {
+        if (typeof applyModelCrossOrigin === "function") {
+          applyModelCrossOrigin(equipmentModelViewer, equipment.model);
+        }
+        if (typeof configureModelViewer === "function") {
+          configureModelViewer(equipmentModelViewer);
+        }
+        equipmentModelViewer.setAttribute("src", equipment.model);
+      }
+
+      equipmentModelViewer.setAttribute("alt", equipment.title);
+      equipmentModelViewer.toggleAttribute("auto-rotate", isAutoRotate);
+      setModelCameraRadius(modelCameraRadius);
+      renderAnnotation(equipment.hotspots || [], -1);
+    };
+
+    if (!equipmentModelViewer._textureHintBound) {
+      equipmentModelViewer._textureHintBound = true;
+      equipmentModelViewer.addEventListener("load", () => {
+        if (typeof fixModelMaterials === "function") {
+          fixModelMaterials(equipmentModelViewer);
+        }
+        renderAnnotation(activeHotspots, activeHotspotIndex);
+      });
     }
-    equipmentModelViewer.setAttribute("src", equipment.model);
-    equipmentModelViewer.setAttribute("alt", equipment.title);
-    equipmentModelViewer.toggleAttribute("auto-rotate", isAutoRotate);
-    setModelCameraRadius(modelCameraRadius);
+
+    void applySrc();
   }
 
   renderHotspots(equipment.hotspots || []);
@@ -541,10 +572,16 @@ function initFromLocation() {
     return;
   }
 
-  activeSpecialtyId = getDefaultSpecialty().id;
-  activeEquipmentId = equipmentId;
+  const specialty = getDefaultSpecialty();
+  const fallback = specialty.equipment[0];
+  activeSpecialtyId = specialty.id;
+  activeEquipmentId = fallback ? fallback.id : equipmentId;
   activeEquipmentDetail = null;
   equipmentDetailError = false;
+
+  if (fallback && !isFileMode) {
+    setEquipmentRoute(fallback.id, "replace");
+  }
 }
 
 async function refreshActiveEquipmentFromApi() {
