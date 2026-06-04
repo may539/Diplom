@@ -11,3 +11,4 @@ This is a diploma project ("Diplom") for a 3D educational equipment visualizatio
 - The SQLite database (`data/equipment.sqlite`) is created and seeded automatically on first `npm start` from `data/equipment.json`; no migrations needed.
 - Default admin password is `admin123` (override with `ADMIN_PASSWORD` env var).
 - There is no build step and no linter; `npm test` runs `node --check` syntax validation and verifies the browser fallback data file is in sync with `equipment.json`.
+- Docker: always rebuild the image after dependency changes (`docker compose build --no-cache`). Do not bind-mount `node_modules` from the host into the container — native modules (`sqlite3`, `bcrypt`) must be built inside the image or you will get `ERR_DLOPEN_FAILED` / GLIBC errors.

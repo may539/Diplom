@@ -79,6 +79,19 @@ docker compose restart
 docker compose down
 ```
 
+### Ошибка `ERR_DLOPEN_FAILED` / GLIBC при старте
+
+Так бывает, если в контейнер попали `node_modules`, собранные на другой ОС (Windows/macOS),
+или образ не пересобран после обновления зависимостей.
+
+```bash
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+```
+
+Не монтируйте папку `node_modules` с хоста в контейнер. В `.dockerignore` она уже исключена.
+
 ## Локальный запуск
 
 ```bash

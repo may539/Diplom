@@ -3,21 +3,25 @@
 FROM node:20-bookworm-slim AS deps
 
 ENV NODE_ENV=production \
-    npm_config_loglevel=warn
+    npm_config_loglevel=warn \
+    npm_config_build_from_source=true
 
 WORKDIR /app
 
-# sqlite3 may need native build tooling when a prebuilt binary is unavailable.
+# Native addons (sqlite3, bcrypt) must be compiled for this image's glibc —
+# prebuilt binaries often fail with ERR_DLOPEN_FAILED / GLIBC mismatch.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
       ca-certificates \
       python3 \
       make \
       g++ \
+      libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev \
+    && npm rebuild sqlite3 bcrypt --build-from-source
 
 FROM node:20-bookworm-slim AS runtime
 
@@ -26,7 +30,10 @@ ENV NODE_ENV=production \
     PORT=8080
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates tini \
+    && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      tini \
+      libsqlite3-0 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system --gid 1001 app \
     && useradd --system --uid 1001 --gid app --home /app --shell /usr/sbin/nologin app
