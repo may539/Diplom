@@ -579,11 +579,30 @@ a {
 .viewer-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 400px);
+  grid-template-areas:
+    "viewer passport"
+    "viewer details";
   align-self: start;
   width: 100%;
   max-width: 1180px;
   margin-inline: auto;
   overflow: hidden;
+}
+
+.workspace-area-viewer {
+  grid-area: viewer;
+}
+
+.workspace-area-passport {
+  grid-area: passport;
+  align-self: start;
+  min-width: 0;
+  max-width: 400px;
+  padding: 28px 26px 0;
+}
+
+.workspace-area-details {
+  grid-area: details;
 }
 
 .viewer-shell {
@@ -612,6 +631,30 @@ model-viewer.equipment-model-viewer {
   min-height: 0;
   max-height: 100%;
   --poster-color: transparent;
+}
+
+.viewer-touch-gate {
+  position: absolute;
+  inset: auto 14px 14px;
+  z-index: 4;
+  padding: 10px 14px;
+  border: 1px solid rgba(94, 234, 212, 0.45);
+  border-radius: 999px;
+  background: rgba(8, 17, 31, 0.82);
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.viewer-touch-gate:hover,
+.viewer-touch-gate:focus-visible {
+  border-color: rgba(94, 234, 212, 0.75);
+  background: rgba(15, 23, 42, 0.92);
+  outline: none;
 }
 
 .local-viewer {
@@ -1081,7 +1124,11 @@ model-viewer.equipment-model-viewer {
 }
 
 .room-passport {
-  margin-bottom: 18px;
+  margin-bottom: 0;
+}
+
+.workspace-area-passport .room-passport__divider {
+  margin-bottom: 0;
 }
 
 .room-passport__label {
@@ -1509,6 +1556,26 @@ main.section .admin-card + .admin-card {
   margin-top: 28px;
 }
 
+.admin-card__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.admin-card__logo {
+  display: block;
+  max-height: 50px;
+  width: auto;
+  object-fit: contain;
+}
+
+.admin-card__heading {
+  width: 100%;
+}
+
 .admin-card h2 {
   margin-top: 0;
   margin-bottom: 8px;
@@ -1545,6 +1612,23 @@ main.section .admin-card + .admin-card {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text);
   font: inherit;
+}
+
+.admin-form select {
+  color-scheme: light;
+  background-color: rgba(15, 23, 42, 0.94);
+  color: #f8fafc;
+  cursor: pointer;
+}
+
+.admin-form select option {
+  color: #111827;
+  background-color: #ffffff;
+}
+
+.admin-form select option:disabled {
+  color: #6b7280;
+  background-color: #f3f4f6;
 }
 
 .admin-form input:focus,
@@ -1746,23 +1830,47 @@ body.focus-viewer .section--viewer .section__header {
 
 @media (max-width: 940px) {
   .hero__grid,
-  .workspace,
-  .viewer-card,
   .specialty-grid {
     grid-template-columns: 1fr;
   }
 
+  .workspace {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "passport"
+      "viewer"
+      "list"
+      "details";
+    gap: 16px;
+  }
+
+  .viewer-card {
+    display: contents;
+    max-width: none;
+  }
+
+  .workspace-area-passport {
+    grid-area: passport;
+    max-width: none;
+    padding: 20px 20px 0;
+  }
+
+  .workspace-area-viewer,
+  .viewer-shell {
+    grid-area: viewer;
+  }
+
   .equipment-list {
+    grid-area: list;
     position: static;
     height: min(42vh, 320px);
     max-height: min(42vh, 320px);
   }
 
-  .viewer-card {
-    max-width: none;
-  }
-
+  .workspace-area-details,
   .viewer-info {
+    grid-area: details;
     max-width: none;
     max-height: none;
     overflow-y: visible;
@@ -1774,6 +1882,67 @@ body.focus-viewer .section--viewer .section__header {
     height: min(56vh, 480px);
     max-height: min(56vh, 480px);
     min-height: 360px;
+  }
+}
+
+@media (max-width: 768px) {
+  .workspace {
+    gap: 14px;
+  }
+
+  .workspace-area-passport {
+    padding: 18px 16px 0;
+  }
+
+  .equipment-list {
+    height: min(40vh, 300px);
+    max-height: min(40vh, 300px);
+    padding: 14px;
+  }
+
+  .viewer-shell,
+  model-viewer.equipment-model-viewer,
+  .model-fallback {
+    height: min(48vh, 380px);
+    max-height: min(48vh, 380px);
+    min-height: 280px;
+  }
+
+  model-viewer.equipment-model-viewer.awaiting-touch {
+    pointer-events: none;
+    touch-action: pan-y;
+  }
+
+  .local-viewer__hint {
+    font-size: 0.78rem;
+  }
+
+  .admin-card {
+    padding: 22px 18px;
+  }
+
+  .admin-card__header {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .admin-catalog__item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .admin-catalog__actions {
+    width: 100%;
+  }
+
+  .admin-catalog__actions .button {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  .admin-form__file-label {
+    white-space: normal;
+    font-size: 0.82rem;
   }
 }
 

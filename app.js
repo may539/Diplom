@@ -27,6 +27,8 @@ const faqList = document.querySelector("#faq-list");
 const adminLoginModalForm = document.querySelector("#admin-login-modal-form");
 const adminLoginModalPassword = document.querySelector("#admin-login-modal-password");
 const adminLoginModalStatus = document.querySelector("#admin-login-modal-status");
+const viewerTouchGate = document.querySelector("#viewer-touch-gate");
+const mobileViewerMq = window.matchMedia("(max-width: 768px)");
 const isFileMode = window.location.protocol === "file:";
 const CATALOG_RELOAD_KEY = "catalogNeedsReload";
 
@@ -59,6 +61,45 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function activateMobileModelViewer() {
+  if (!equipmentModelViewer) {
+    return;
+  }
+
+  equipmentModelViewer.classList.add("is-touch-active");
+  equipmentModelViewer.classList.remove("awaiting-touch");
+  equipmentModelViewer.setAttribute("camera-controls", "");
+  viewerTouchGate?.setAttribute("hidden", "");
+}
+
+function syncMobileViewerInteraction(resetTouch = false) {
+  if (!equipmentModelViewer) {
+    return;
+  }
+
+  if (!mobileViewerMq.matches) {
+    equipmentModelViewer.classList.remove("awaiting-touch", "is-touch-active");
+    equipmentModelViewer.setAttribute("camera-controls", "");
+    viewerTouchGate?.setAttribute("hidden", "");
+    return;
+  }
+
+  if (resetTouch) {
+    equipmentModelViewer.classList.remove("is-touch-active");
+  }
+
+  if (equipmentModelViewer.classList.contains("is-touch-active")) {
+    equipmentModelViewer.classList.remove("awaiting-touch");
+    equipmentModelViewer.setAttribute("camera-controls", "");
+    viewerTouchGate?.setAttribute("hidden", "");
+    return;
+  }
+
+  equipmentModelViewer.classList.add("awaiting-touch");
+  equipmentModelViewer.removeAttribute("camera-controls");
+  viewerTouchGate?.removeAttribute("hidden");
 }
 
 function allEquipment() {
@@ -473,6 +514,7 @@ function renderActiveEquipment(equipment) {
     void applySrc();
   }
 
+  syncMobileViewerInteraction(true);
   renderHotspots(equipment.hotspots || []);
 }
 
@@ -1021,11 +1063,15 @@ async function init() {
     }
     await refreshCatalogView();
     applyInitialViewOptions();
+    syncMobileViewerInteraction();
   } catch (error) {
     specialtyGrid.innerHTML = '<p class="error-state">Не удалось загрузить каталог оборудования.</p>';
     equipmentList.innerHTML = '<p class="error-state">Проверьте запуск Node.js сервера.</p>';
   }
 }
+
+viewerTouchGate?.addEventListener("click", activateMobileModelViewer);
+mobileViewerMq.addEventListener("change", () => syncMobileViewerInteraction());
 
 window.addEventListener("pageshow", async (event) => {
   if (isFileMode) {

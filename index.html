@@ -118,7 +118,14 @@
           </aside>
 
           <article class="viewer-card">
-            <div class="viewer-shell">
+            <section class="room-passport workspace-area-passport" id="room-passport" aria-labelledby="room-passport-label">
+              <p class="room-passport__label" id="room-passport-label">ПАСПОРТ АУДИТОРИИ</p>
+              <h4 class="room-passport__title" id="room-passport-title"></h4>
+              <p class="room-passport__description" id="room-passport-description"></p>
+              <hr class="room-passport__divider" />
+            </section>
+
+            <div class="viewer-shell workspace-area-viewer">
               <div class="local-viewer" id="local-viewer" role="img" aria-label="Интерактивный 3D макет оборудования">
                 <model-viewer
                   id="equipment-model-viewer"
@@ -128,13 +135,23 @@
                   auto-rotate-delay="0"
                   rotation-per-second="30deg"
                   touch-action="pan-y"
-                  loading="eager"
+                  interaction-prompt="none"
+                  loading="lazy"
                   reveal="auto"
                   camera-orbit="auto auto 165%"
                   min-camera-orbit="auto auto 70%"
                   max-camera-orbit="auto auto 320%"
                   field-of-view="35deg"
                 ></model-viewer>
+                <button
+                  class="viewer-touch-gate"
+                  id="viewer-touch-gate"
+                  type="button"
+                  hidden
+                  aria-label="Активировать вращение 3D-модели"
+                >
+                  Нажмите для вращения модели
+                </button>
                 <div class="local-viewer__scene" id="local-scene" hidden>
                   <div class="scene-floor"></div>
                   <div class="equipment-3d" id="equipment-shape" data-variant="sensor" aria-hidden="true">
@@ -167,13 +184,7 @@
               </div>
             </div>
 
-            <div class="viewer-info">
-              <section class="room-passport" id="room-passport" aria-labelledby="room-passport-label">
-                <p class="room-passport__label" id="room-passport-label">ПАСПОРТ АУДИТОРИИ</p>
-                <h4 class="room-passport__title" id="room-passport-title"></h4>
-                <p class="room-passport__description" id="room-passport-description"></p>
-                <hr class="room-passport__divider" />
-              </section>
+            <div class="viewer-info workspace-area-details">
               <p class="eyebrow" id="equipment-type">Датчик</p>
               <h3 id="equipment-title">Учебный объект</h3>
               <p id="equipment-description"></p>

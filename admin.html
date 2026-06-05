@@ -37,11 +37,22 @@
 
     <main class="section">
       <article class="admin-card" id="admin-form" aria-labelledby="admin-form-title">
-        <h2 id="admin-form-title">Регистрация оборудования в паспорте кабинета</h2>
-        <p class="admin-card__hint">
-          Доступ открыт после ввода пароля на главной странице. Укажите URL модели
-          <strong>или</strong> загрузите файл .glb.
-        </p>
+        <header class="admin-card__header">
+          <img
+            class="admin-card__logo"
+            src="apek-logo.png"
+            width="160"
+            height="50"
+            alt="Эмблема Алтайского Промышленно-Экономического колледжа"
+          />
+          <div class="admin-card__heading">
+            <h2 id="admin-form-title">Регистрация оборудования в паспорте кабинета</h2>
+            <p class="admin-card__hint">
+              Доступ открыт после ввода пароля на главной странице. Укажите URL модели
+              <strong>или</strong> загрузите файл .glb.
+            </p>
+          </div>
+        </header>
         <form id="equipment-form" class="admin-form" enctype="multipart/form-data" method="post">
           <input type="hidden" name="equipmentId" id="equipment-id" value="" />
           <label>
