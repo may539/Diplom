@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Интерактивная трехмерная визуализация учебного оборудования для специальностей ОИБ, ПД и ЗЕМ."
+      content="Интерактивный фонд учебного оборудования по кабинетам и лабораториям Алтайского Промышленно-Экономического колледжа."
     />
     <title>3D визуализация учебного оборудования</title>
     <link rel="stylesheet" href="styles.css" />
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
     <script src="model-viewer-setup.js"></script>
     <script src="data/equipment-data.js"></script>
+    <script src="algorithms-client/lab-adapter.js"></script>
     <script src="algorithms-client/specialty-tree.js"></script>
     <script src="algorithms-client/catalog-render.js"></script>
     <script defer src="app.js"></script>
@@ -49,7 +50,7 @@
           <p class="eyebrow">Для сервера учебного заведения</p>
           <h1>Интерактивная трехмерная визуализация учебного оборудования</h1>
           <p class="hero__lead">
-            Сайт помогает выбрать специальность, открыть карточку оборудования и
+            Сайт помогает выбрать лабораторную аудиторию, открыть карточку оборудования и
             рассмотреть учебную 3D-модель прямо в браузере. QR-коды для стендов
             формируются в админ-панели после добавления модели.
           </p>
@@ -88,7 +89,7 @@
             загружается в интерактивный просмотрщик.
           </p>
         </div>
-        <nav class="specialty-tree" id="specialty-tree" aria-label="Дерево специальностей"></nav>
+        <nav class="specialty-tree" id="specialty-tree" aria-label="Дерево лабораторий и кабинетов"></nav>
         <div class="specialty-grid" id="specialty-grid" aria-hidden="true"></div>
       </section>
 
@@ -105,7 +106,7 @@
         <div class="workspace">
           <aside class="equipment-list" aria-label="Список оборудования">
             <div class="equipment-list__top">
-              <span id="active-specialty-label">ОИБ</span>
+              <span id="active-specialty-label">Каб. 212</span>
               <span id="equipment-count">0 объектов</span>
             </div>
             <div class="equipment-list__scroll" id="equipment-list"></div>
@@ -163,7 +164,7 @@
 
             <div class="viewer-info">
               <section class="room-passport" id="room-passport" aria-labelledby="room-passport-label">
-                <p class="room-passport__label" id="room-passport-label">Паспорт лабораторной аудитории</p>
+                <p class="room-passport__label" id="room-passport-label">ПАСПОРТ АУДИТОРИИ</p>
                 <h4 class="room-passport__title" id="room-passport-title"></h4>
                 <p class="room-passport__description" id="room-passport-description"></p>
                 <hr class="room-passport__divider" />
@@ -244,7 +245,7 @@
           изучать описания и открывать нужный объект по QR-коду с мобильного телефона.
         </p>
         <ul class="about-list">
-          <li>Каталог по специальностям ОИБ, ПД и ЗЕМ</li>
+          <li>Каталог по кабинетам и лабораториям с паспортами аудиторий</li>
           <li>Интерактивный просмотр GLB-моделей в браузере</li>
           <li>QR-доступ к полноэкранному режиму для лабораторий и стендов</li>
         </ul>
@@ -316,7 +317,7 @@
           <h3>1. Цели обработки</h3>
           <ul>
             <li>показ интерактивных 3D-моделей учебного оборудования студентам и преподавателям;</li>
-            <li>ведение каталога по специальностям, описаний и QR-доступа к объектам в аудиториях;</li>
+            <li>ведение каталога по лабораториям и кабинетам, описаний и QR-доступа к объектам в аудиториях;</li>
             <li>администрирование контента (добавление, изменение и удаление записей оборудования);</li>
             <li>обеспечение безопасности и стабильной работы Сайта на сервере учебного заведения.</li>
           </ul>

@@ -367,6 +367,7 @@ a {
 
 .specialty-tree__node {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -400,7 +401,18 @@ a {
 }
 
 .specialty-tree__name {
+  flex: 1;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.specialty-tree__passport {
+  flex-basis: 100%;
+  margin: 2px 0 0;
   color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.45;
 }
 
 .specialty-card {
@@ -1048,7 +1060,7 @@ model-viewer.equipment-model-viewer {
 
 .room-passport__title {
   margin: 0 0 10px;
-  font-size: 1.15rem;
+  font-size: clamp(1.25rem, 2.4vw, 1.55rem);
   font-weight: 800;
   line-height: 1.35;
   color: var(--text);

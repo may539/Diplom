@@ -80,7 +80,17 @@ function getDefaultSpecialty() {
 }
 
 function isSpecialtyAvailable(specialtyId) {
+  if (window.LabAdapter) {
+    return window.LabAdapter.isLabAvailable(specialtyId);
+  }
   return specialtyId === ACTIVE_SPECIALTY_ID;
+}
+
+function adaptLoadedSpecialties(data) {
+  if (window.LabAdapter) {
+    return window.LabAdapter.adaptSpecialties(data);
+  }
+  return data;
 }
 
 function findEquipmentStrict(id) {
@@ -438,7 +448,10 @@ function renderActiveEquipment(equipment) {
 
   localViewer.setAttribute("aria-label", `Интерактивная 3D модель: ${equipment.title}`);
   equipmentShape.dataset.variant = equipment.variant || "sensor";
-  equipmentType.textContent = equipment.type;
+  const specialty = findSpecialty(activeSpecialtyId);
+  equipmentType.textContent = window.LabAdapter
+    ? window.LabAdapter.formatEquipmentType(equipment.type, specialty)
+    : equipment.type;
   equipmentTitle.textContent = equipment.title;
   equipmentDescription.textContent = equipment.description;
   modelLink.href = equipment.model;
@@ -787,7 +800,7 @@ function applyInitialViewOptions() {
 
 async function loadData() {
   if (isFileMode && window.EQUIPMENT_DATA) {
-    specialties = window.EQUIPMENT_DATA;
+    specialties = adaptLoadedSpecialties(window.EQUIPMENT_DATA);
   } else {
     try {
       const response = await fetch("/api/specialties", { cache: "no-store" });
@@ -796,13 +809,13 @@ async function loadData() {
         throw new Error("Specialties API request failed");
       }
 
-      specialties = await response.json();
+      specialties = adaptLoadedSpecialties(await response.json());
     } catch (error) {
       if (!window.EQUIPMENT_DATA) {
         throw error;
       }
 
-      specialties = window.EQUIPMENT_DATA;
+      specialties = adaptLoadedSpecialties(window.EQUIPMENT_DATA);
     }
   }
 
