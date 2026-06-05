@@ -1926,8 +1926,12 @@ body.focus-viewer .section--viewer .workspace {
   .viewer-info {
     grid-area: details;
     max-width: none;
-    padding: 0 20px 24px;
+    padding: 20px 20px 24px;
     overflow-y: visible;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg-card);
+    box-shadow: var(--shadow);
   }
 
   .viewer-shell,
