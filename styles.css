@@ -1530,6 +1530,11 @@ main.section .admin-card + .admin-card {
   font-weight: 700;
 }
 
+.admin-form__file-label {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
 .admin-form input,
 .admin-form textarea,
 .admin-form select {
@@ -1690,8 +1695,16 @@ main.section .admin-card + .admin-card {
 }
 
 .admin-catalog__delete {
-  border-color: rgba(248, 113, 113, 0.45);
-  color: #fecaca;
+  border-color: rgba(255, 77, 77, 0.5);
+  color: #ff4d4d;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.admin-catalog__delete:hover,
+.admin-catalog__delete:focus-visible {
+  background: rgba(255, 77, 77, 0.14);
+  border-color: rgba(255, 77, 77, 0.65);
+  color: #ff6666;
 }
 
 .admin-catalog__loading,

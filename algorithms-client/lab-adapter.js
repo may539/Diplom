@@ -113,15 +113,44 @@
     return AVAILABLE_LAB_IDS.has(String(labId || "").toLowerCase());
   }
 
-  function formatEquipmentType(type, specialty) {
+  function capitalizeCategory(text) {
+    return String(text || "")
+      .split(" · ")
+      .map((part) => {
+        const trimmed = part.trim();
+        if (!trimmed) {
+          return "";
+        }
+        return trimmed.charAt(0).toLocaleUpperCase("ru-RU") + trimmed.slice(1);
+      })
+      .join(" · ");
+  }
+
+  function categoryFromType(type) {
     const raw = String(type || "").trim();
     if (!raw) {
       return "";
     }
 
-    const roomCode = specialty?.code || roomCodeFor(specialty) || "";
-    const parts = raw.split("·").map((part) => part.trim());
-    const category = parts.length > 1 ? parts.slice(1).join(" · ") : raw;
+    const parts = raw.split("·").map((part) => part.trim()).filter(Boolean);
+    if (parts.length <= 1) {
+      return capitalizeCategory(raw);
+    }
+
+    const first = parts[0].toUpperCase();
+    const legacyPrefix = Boolean(CODE_TO_ID[first]);
+    const roomPrefix = /^КАБ\.\s*\d+/i.test(parts[0]);
+    const category = legacyPrefix || roomPrefix ? parts.slice(1).join(" · ") : parts.join(" · ");
+    return capitalizeCategory(category);
+  }
+
+  function formatEquipmentType(type, specialty) {
+    const category = categoryFromType(type);
+    if (!category) {
+      return "";
+    }
+
+    const roomCode = roomCodeFor(specialty);
     return roomCode ? `${roomCode} · ${category}` : category;
   }
 

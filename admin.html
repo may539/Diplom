@@ -55,8 +55,13 @@
           </label>
 
           <label>
-            Тип (например: Каб. 212 · криминалистика) *
-            <input type="text" name="type" required />
+            Тип (например: Специализированное ПО, Оптический прибор, Стенд) *
+            <input
+              type="text"
+              name="type"
+              required
+              placeholder="Специализированное ПО, Оптический прибор, Стенд"
+            />
           </label>
 
           <label>
@@ -79,7 +84,7 @@
             <input type="url" name="model" placeholder="https://…" />
           </label>
 
-          <label>
+          <label class="admin-form__file-label">
             Файл .glb (сохранится в <code>public/models/</code>)
             <input type="file" name="glb" accept=".glb,model/gltf-binary" />
           </label>
