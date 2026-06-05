@@ -13,7 +13,6 @@
     <script src="model-viewer-setup.js"></script>
     <script src="data/equipment-data.js"></script>
     <script src="algorithms-client/lab-adapter.js"></script>
-    <script src="algorithms-client/specialty-tree.js"></script>
     <script src="algorithms-client/catalog-render.js"></script>
     <script defer src="app.js"></script>
   </head>
@@ -21,6 +20,13 @@
     <header class="hero">
       <nav class="topbar" aria-label="Основная навигация">
         <a class="brand" href="#top" aria-label="Учебное оборудование Алтайского Промышленно-Экономического колледжа">
+          <img
+            class="brand__logo"
+            src="apek-logo.png"
+            width="48"
+            height="48"
+            alt="Эмблема Алтайского Промышленно-Экономического колледжа"
+          />
           <span class="brand__mark">3D</span>
           <span class="brand__title">Учебное оборудование Алтайского Промышленно-Экономического колледжа</span>
         </a>
@@ -89,8 +95,7 @@
             загружается в интерактивный просмотрщик.
           </p>
         </div>
-        <nav class="specialty-tree" id="specialty-tree" aria-label="Дерево лабораторий и кабинетов"></nav>
-        <div class="specialty-grid" id="specialty-grid" aria-hidden="true"></div>
+        <div class="specialty-grid" id="specialty-grid" aria-label="Список лабораторий и кабинетов"></div>
       </section>
 
       <section class="section section--viewer" id="viewer" aria-labelledby="viewer-title">

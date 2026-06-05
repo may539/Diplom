@@ -1,5 +1,4 @@
 const specialtyGrid = document.querySelector("#specialty-grid");
-const specialtyTreeRoot = document.querySelector("#specialty-tree");
 const equipmentList = document.querySelector("#equipment-list");
 const activeSpecialtyLabel = document.querySelector("#active-specialty-label");
 const equipmentCount = document.querySelector("#equipment-count");
@@ -189,33 +188,12 @@ function setModelCameraRadius(nextRadius) {
   syncZoomControls();
 }
 
-async function renderSpecialtyTree() {
-  if (!specialtyTreeRoot || isFileMode || !window.SpecialtyTreeAlgorithm) {
+function renderSpecialties() {
+  if (!specialtyGrid) {
     return;
   }
 
-  try {
-    const payload = await window.SpecialtyTreeAlgorithm.fetchSpecialtyTree("/api/specialties/tree");
-    specialtyTreeRoot.innerHTML = window.SpecialtyTreeAlgorithm.renderSpecialtyTreeHtml(payload.tree, {
-      isAvailable: isSpecialtyAvailable,
-    });
-    specialtyTreeRoot.hidden = false;
-    if (specialtyGrid) {
-      specialtyGrid.hidden = true;
-    }
-  } catch (error) {
-    specialtyTreeRoot.innerHTML = "";
-    specialtyTreeRoot.hidden = true;
-    if (specialtyGrid) {
-      specialtyGrid.hidden = false;
-    }
-  }
-}
-
-function renderSpecialties() {
-  if (specialtyGrid) {
-    specialtyGrid.hidden = false;
-  }
+  specialtyGrid.hidden = false;
   specialtyGrid.innerHTML = specialties
     .map((specialty) => {
       const available = isSpecialtyAvailable(specialty.id);
@@ -824,13 +802,6 @@ async function loadData() {
   }
 }
 
-specialtyTreeRoot?.addEventListener("click", async (event) => {
-  const node = event.target.closest("[data-specialty]");
-  if (!node) return;
-  await selectSpecialtyAndLoadCatalog(node.dataset.specialty);
-  document.querySelector("#viewer")?.scrollIntoView({ behavior: "smooth", block: "start" });
-});
-
 specialtyGrid?.addEventListener("click", async (event) => {
   const card = event.target.closest("[data-specialty]");
   if (!card) return;
@@ -1033,7 +1004,6 @@ zoomResetButton.addEventListener("click", () => {
 async function refreshCatalogView() {
   await loadData();
   initFromLocation();
-  await renderSpecialtyTree();
   renderSpecialties();
   await refreshActiveEquipmentFromApi();
   render();
