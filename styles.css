@@ -291,8 +291,8 @@ a {
 }
 
 .hero__panel,
-.viewer-card,
-.equipment-list {
+.equipment-list,
+.viewer-sidebar {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-card);
@@ -495,15 +495,21 @@ a {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
-  gap: 20px;
+  gap: 16px;
   align-items: stretch;
+  box-sizing: border-box;
+}
+
+.workspace--stage {
+  min-height: 0;
 }
 
 .equipment-list {
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   height: 100%;
+  max-height: 100%;
   min-height: 0;
   padding: 16px;
   overflow-x: hidden;
@@ -576,30 +582,18 @@ a {
   line-height: 1.5;
 }
 
-.viewer-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 400px);
-  grid-template-areas: "viewer sidebar";
-  width: 100%;
-  min-width: 0;
-  height: 100%;
-  min-height: 0;
-  max-width: none;
-  margin-inline: 0;
-  overflow: hidden;
-}
-
 .workspace-area-viewer {
-  grid-area: viewer;
   height: 100%;
   min-height: 0;
+  min-width: 0;
 }
 
 .viewer-sidebar {
-  grid-area: sidebar;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   height: 100%;
+  max-height: 100%;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -629,9 +623,12 @@ a {
 .viewer-shell {
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
   height: 100%;
   min-height: 0;
-  max-height: none;
+  max-height: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   background:
     linear-gradient(rgba(8, 17, 31, 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgba(8, 17, 31, 0.08) 1px, transparent 1px),
@@ -1841,33 +1838,88 @@ body.focus-viewer .topbar {
 body.focus-viewer .section--viewer {
   display: flex;
   flex-direction: column;
-  width: min(1180px, calc(100% - 32px));
+  width: min(1280px, calc(100% - 32px));
   height: calc(100vh - var(--site-header-height));
-  padding: 12px 0 0;
+  max-height: calc(100vh - var(--site-header-height));
+  height: calc(100dvh - var(--site-header-height));
+  max-height: calc(100dvh - var(--site-header-height));
+  padding: 10px 0 0;
   margin: 0 auto;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 body.focus-viewer .section--viewer .section__header {
   display: none;
 }
 
-body.focus-viewer .section--viewer .workspace {
+body.focus-viewer .section--viewer .workspace--stage {
   flex: 1;
   min-height: 0;
   height: 100%;
+  max-height: 100%;
 }
 
 @media (min-width: 941px) {
-  .section--viewer .workspace {
-    height: calc(100vh - var(--site-header-height));
+  .section--viewer .workspace--stage {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr) 380px;
     overflow: hidden;
   }
 
-  .section--viewer .workspace > .equipment-list,
-  .section--viewer .workspace > .viewer-card {
+  body.focus-viewer .section--viewer .workspace--stage {
     height: 100%;
+    max-height: 100%;
+  }
+
+  .section--viewer .workspace__column--list {
+    width: 300px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+
+  .section--viewer .workspace__column--sidebar {
+    width: 380px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+
+  .section--viewer .workspace__column--viewer {
+    min-width: 0;
     min-height: 0;
+  }
+
+  body.focus-viewer .section--viewer .workspace__column--list,
+  body.focus-viewer .section--viewer .workspace__column--sidebar,
+  body.focus-viewer .section--viewer .workspace__column--viewer {
+    height: 100%;
+    max-height: 100%;
+  }
+
+  body.focus-viewer .section--viewer .workspace__column--viewer {
+    height: 100%;
+    max-height: 100%;
+  }
+
+  body.focus-viewer .section--viewer .workspace__column--viewer model-viewer.equipment-model-viewer {
+    height: 100%;
+    max-height: 100%;
+  }
+
+  body.focus-viewer .section--viewer .viewer-shell {
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+  }
+
+  .section--viewer .viewer-shell {
+    min-height: 480px;
+    height: min(72vh, 640px);
+  }
+
+  .section--viewer .workspace__column--list,
+  .section--viewer .workspace__column--sidebar {
+    max-height: min(72vh, 640px);
   }
 }
 
@@ -1893,7 +1945,6 @@ body.focus-viewer .section--viewer .workspace {
     overflow: visible;
   }
 
-  .viewer-card,
   .viewer-sidebar {
     display: contents;
     max-width: none;

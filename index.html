@@ -108,8 +108,8 @@
           </p>
         </div>
 
-        <div class="workspace">
-          <aside class="equipment-list" aria-label="Список оборудования">
+        <div class="workspace workspace--stage">
+          <aside class="equipment-list workspace__column workspace__column--list" aria-label="Список оборудования">
             <div class="equipment-list__top">
               <span id="active-specialty-label">Каб. 212</span>
               <span id="equipment-count">0 объектов</span>
@@ -117,8 +117,7 @@
             <div class="equipment-list__scroll" id="equipment-list"></div>
           </aside>
 
-          <article class="viewer-card">
-            <div class="viewer-shell workspace-area-viewer">
+          <div class="viewer-shell workspace__column workspace__column--viewer workspace-area-viewer">
               <div class="local-viewer" id="local-viewer" role="img" aria-label="Интерактивный 3D макет оборудования">
                 <model-viewer
                   id="equipment-model-viewer"
@@ -175,9 +174,12 @@
                   <button class="zoom-control" id="zoom-in" data-viewer-control type="button" aria-label="Приблизить модель">+</button>
                 </div>
               </div>
-            </div>
+          </div>
 
-            <aside class="viewer-sidebar workspace-area-sidebar" aria-label="Паспорт аудитории и описание оборудования">
+          <aside
+            class="viewer-sidebar workspace__column workspace__column--sidebar workspace-area-sidebar"
+            aria-label="Паспорт аудитории и описание оборудования"
+          >
               <section class="room-passport workspace-area-passport" id="room-passport" aria-labelledby="room-passport-label">
                 <p class="room-passport__label" id="room-passport-label">ПАСПОРТ АУДИТОРИИ</p>
                 <h4 class="room-passport__title" id="room-passport-title"></h4>
@@ -202,8 +204,7 @@
                   </a>
                 </div>
               </div>
-            </aside>
-          </article>
+          </aside>
         </div>
       </section>
     </main>

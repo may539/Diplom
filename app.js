@@ -800,6 +800,25 @@ if (adminLoginModalForm) {
   adminLoginModalForm.addEventListener("submit", submitAdminLogin);
 }
 
+function shouldUseFocusViewerLayout() {
+  const searchParams = new URLSearchParams(window.location.search);
+  const hash = window.location.hash.replace("#", "");
+
+  if (searchParams.get("focus") === "viewer") {
+    return true;
+  }
+
+  if (hash === "viewer" || hash.startsWith("equipment=")) {
+    return true;
+  }
+
+  return !isFileMode && /^\/equipment\/[^/]+\/?$/.test(window.location.pathname);
+}
+
+function syncFocusViewerLayout() {
+  document.body.classList.toggle("focus-viewer", shouldUseFocusViewerLayout());
+}
+
 function applyInitialViewOptions() {
   const searchParams = new URLSearchParams(window.location.search);
   const scrollToViewer = () => {
@@ -807,15 +826,12 @@ function applyInitialViewOptions() {
     window.scrollTo({ top: viewer.offsetTop - 16, behavior: "auto" });
   };
 
-  if (searchParams.get("focus") === "viewer") {
-    document.body.classList.add("focus-viewer");
-  }
+  syncFocusViewerLayout();
 
-  if (searchParams.get("view") === "viewer") {
+  if (searchParams.get("view") === "viewer" && !shouldUseFocusViewerLayout()) {
     scrollToViewer();
     window.setTimeout(scrollToViewer, 250);
   }
-
 }
 
 async function loadData() {
@@ -848,7 +864,11 @@ specialtyGrid?.addEventListener("click", async (event) => {
   const card = event.target.closest("[data-specialty]");
   if (!card) return;
   await selectSpecialtyAndLoadCatalog(card.dataset.specialty);
-  document.querySelector("#viewer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (window.location.hash.replace("#", "") !== "viewer") {
+    window.location.hash = "viewer";
+  } else {
+    syncFocusViewerLayout();
+  }
 });
 
 equipmentList.addEventListener("click", async (event) => {
@@ -962,8 +982,14 @@ function scheduleSyncFromLocation() {
   });
 }
 
-window.addEventListener("hashchange", scheduleSyncFromLocation);
-window.addEventListener("popstate", scheduleSyncFromLocation);
+window.addEventListener("hashchange", () => {
+  syncFocusViewerLayout();
+  scheduleSyncFromLocation();
+});
+window.addEventListener("popstate", () => {
+  syncFocusViewerLayout();
+  scheduleSyncFromLocation();
+});
 
 localViewer.addEventListener("pointerdown", (event) => {
   if (event.target.closest("model-viewer")) {
@@ -1063,6 +1089,7 @@ async function init() {
     }
     await refreshCatalogView();
     applyInitialViewOptions();
+    syncFocusViewerLayout();
     syncMobileViewerInteraction();
   } catch (error) {
     specialtyGrid.innerHTML = '<p class="error-state">Не удалось загрузить каталог оборудования.</p>';
