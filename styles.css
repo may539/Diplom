@@ -493,15 +493,18 @@ a {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(240px, 330px) minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
 }
 
 .equipment-list {
+  position: sticky;
+  top: 1.25rem;
   display: flex;
   flex-direction: column;
-  max-height: min(70vh, 42rem);
+  height: min(70vh, 600px);
+  max-height: min(70vh, 600px);
   padding: 16px;
   overflow: hidden;
 }
@@ -527,13 +530,14 @@ a {
 
 .equipment-list__top {
   display: flex;
+  flex-shrink: 0;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
   padding: 10px 8px 16px;
   border-bottom: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 0.9rem;
+  color: var(--text);
+  font-size: 0.98rem;
   font-weight: 800;
 }
 
@@ -563,25 +567,31 @@ a {
 
 .equipment-button strong {
   margin-bottom: 6px;
+  font-size: 1.02rem;
 }
 
 .equipment-button span {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.98rem;
+  line-height: 1.5;
 }
 
 .viewer-card {
   display: grid;
-  grid-template-columns: minmax(0, 1.12fr) minmax(280px, 0.88fr);
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 400px);
   align-self: start;
   width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
   overflow: hidden;
 }
 
 .viewer-shell {
   position: relative;
   overflow: hidden;
-  min-height: 560px;
+  height: min(70vh, 600px);
+  max-height: min(70vh, 600px);
+  min-height: 480px;
   background:
     linear-gradient(rgba(8, 17, 31, 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgba(8, 17, 31, 0.08) 1px, transparent 1px),
@@ -599,7 +609,8 @@ model-viewer.equipment-model-viewer {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 560px;
+  min-height: 0;
+  max-height: 100%;
   --poster-color: transparent;
 }
 
@@ -1036,7 +1047,7 @@ model-viewer.equipment-model-viewer {
 .model-fallback {
   display: grid;
   height: 100%;
-  min-height: 560px;
+  min-height: 0;
   place-content: center;
   gap: 8px;
   padding: 24px;
@@ -1047,10 +1058,26 @@ model-viewer.equipment-model-viewer {
 .viewer-info {
   display: flex;
   min-width: 0;
+  max-width: 400px;
+  width: 100%;
+  max-height: min(70vh, 600px);
   flex-direction: column;
-  justify-content: center;
-  padding: 34px;
+  justify-content: flex-start;
+  padding: 28px 26px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   overflow-wrap: anywhere;
+  scrollbar-gutter: stable;
+}
+
+.viewer-info::-webkit-scrollbar {
+  width: 6px;
+}
+
+.viewer-info::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(94, 234, 212, 0.35);
 }
 
 .room-passport {
@@ -1076,10 +1103,10 @@ model-viewer.equipment-model-viewer {
 
 .room-passport__description {
   margin: 0;
-  color: var(--muted);
-  font-size: 0.95rem;
+  color: var(--text);
+  font-size: 1.05rem;
   font-weight: 600;
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
 .room-passport__divider {
@@ -1113,11 +1140,27 @@ model-viewer.equipment-model-viewer {
 }
 
 .viewer-info h3 {
-  font-size: clamp(1.8rem, 3vw, 3rem);
-  letter-spacing: -0.04em;
+  margin-bottom: 12px;
+  color: var(--text);
+  font-size: clamp(1.55rem, 2.4vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
   max-width: 100%;
   overflow-wrap: anywhere;
   word-break: normal;
+}
+
+.viewer-info #equipment-description,
+.viewer-info p:not(.room-passport__label):not(.eyebrow) {
+  color: var(--text);
+  font-size: 1.08rem;
+  line-height: 1.6;
+}
+
+.viewer-info .eyebrow {
+  margin-bottom: 8px;
+  font-size: 0.82rem;
 }
 
 .feature-list {
@@ -1131,7 +1174,9 @@ model-viewer.equipment-model-viewer {
 .feature-list li {
   position: relative;
   padding-left: 26px;
-  color: var(--muted);
+  color: var(--text);
+  font-size: 1.02rem;
+  line-height: 1.6;
 }
 
 .feature-list li::before {
@@ -1148,8 +1193,9 @@ model-viewer.equipment-model-viewer {
   border: 1px solid rgba(94, 234, 212, 0.24);
   border-radius: 18px;
   background: rgba(94, 234, 212, 0.08);
-  color: var(--muted);
-  line-height: 1.5;
+  color: var(--text);
+  font-size: 1.02rem;
+  line-height: 1.6;
 }
 
 .annotation-panel strong,
@@ -1693,11 +1739,28 @@ body.focus-viewer .section--viewer .section__header {
     grid-template-columns: 1fr;
   }
 
+  .equipment-list {
+    position: static;
+    height: min(42vh, 320px);
+    max-height: min(42vh, 320px);
+  }
+
+  .viewer-card {
+    max-width: none;
+  }
+
+  .viewer-info {
+    max-width: none;
+    max-height: none;
+    overflow-y: visible;
+  }
+
   .viewer-shell,
-  model-viewer,
   model-viewer.equipment-model-viewer,
   .model-fallback {
-    min-height: 420px;
+    height: min(56vh, 480px);
+    max-height: min(56vh, 480px);
+    min-height: 360px;
   }
 }
 
@@ -1708,7 +1771,16 @@ body.focus-viewer .section--viewer .section__header {
   }
 
   .equipment-list {
-    max-height: min(42vh, 18rem);
+    height: min(38vh, 280px);
+    max-height: min(38vh, 280px);
+  }
+
+  .viewer-shell,
+  model-viewer.equipment-model-viewer,
+  .model-fallback {
+    height: min(50vh, 400px);
+    max-height: min(50vh, 400px);
+    min-height: 300px;
   }
 
   .viewer-info__actions {
