@@ -54,7 +54,7 @@
             формируются в админ-панели после добавления модели.
           </p>
           <div class="hero__actions">
-            <a class="button button--primary" href="#specialties">Выбрать специальность</a>
+            <a class="button button--primary" href="#specialties">Выбрать аудиторию</a>
             <a class="button button--ghost" href="#viewer">Открыть 3D просмотр</a>
           </div>
         </div>
@@ -62,7 +62,7 @@
           <div class="panel-card">
             <span class="panel-card__icon">01</span>
             <h2>Каталог</h2>
-            <p>ОИБ, ПД и ЗЕМ с отдельными наборами учебного оборудования.</p>
+            <p>Интерактивный фонд учебного оборудования по кабинетам и лабораториям.</p>
           </div>
           <div class="panel-card">
             <span class="panel-card__icon">02</span>
@@ -82,7 +82,7 @@
       <section class="section" id="specialties" aria-labelledby="specialties-title">
         <div class="section__header">
           <p class="eyebrow">Шаг 1</p>
-          <h2 id="specialties-title">Выберите специальность</h2>
+          <h2 id="specialties-title">Выберите учебную аудиторию / лабораторию</h2>
           <p>
             После выбора меняется набор оборудования, а первая модель сразу
             загружается в интерактивный просмотрщик.
@@ -162,6 +162,12 @@
             </div>
 
             <div class="viewer-info">
+              <section class="room-passport" id="room-passport" aria-labelledby="room-passport-label">
+                <p class="room-passport__label" id="room-passport-label">Паспорт лабораторной аудитории</p>
+                <h4 class="room-passport__title" id="room-passport-title"></h4>
+                <p class="room-passport__description" id="room-passport-description"></p>
+                <hr class="room-passport__divider" />
+              </section>
               <p class="eyebrow" id="equipment-type">Датчик</p>
               <h3 id="equipment-title">Учебный объект</h3>
               <p id="equipment-description"></p>

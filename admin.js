@@ -131,7 +131,7 @@ function setEditMode(item) {
 
 function clearEditMode() {
   equipmentIdInput.value = "";
-  formSubmitButton.textContent = "Добавить модель и сгенерировать QR";
+  formSubmitButton.textContent = "Внести в паспорт и создать QR-код";
   cancelEditButton.hidden = true;
   document.querySelector("#admin-form-title").textContent = "Новая 3D-модель";
   equipmentForm.reset();

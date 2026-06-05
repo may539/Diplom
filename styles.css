@@ -1033,6 +1033,41 @@ model-viewer.equipment-model-viewer {
   overflow-wrap: anywhere;
 }
 
+.room-passport {
+  margin-bottom: 18px;
+}
+
+.room-passport__label {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.room-passport__title {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.room-passport__description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.room-passport__divider {
+  margin: 18px 0 20px;
+  border: none;
+  border-top: 1px solid var(--line);
+}
+
 .viewer-info__actions {
   display: flex;
   flex-wrap: wrap;

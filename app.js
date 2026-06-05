@@ -6,6 +6,8 @@ const equipmentCount = document.querySelector("#equipment-count");
 const equipmentType = document.querySelector("#equipment-type");
 const equipmentTitle = document.querySelector("#equipment-title");
 const equipmentDescription = document.querySelector("#equipment-description");
+const roomPassportTitle = document.querySelector("#room-passport-title");
+const roomPassportDescription = document.querySelector("#room-passport-description");
 const equipmentFeatures = document.querySelector("#equipment-features");
 const modelLink = document.querySelector("#model-link");
 const localViewer = document.querySelector("#local-viewer");
@@ -416,7 +418,24 @@ function renderHotspots(hotspots = []) {
   renderAnnotation(hotspots, -1);
 }
 
+function renderRoomPassport(specialty) {
+  if (!roomPassportTitle || !roomPassportDescription) {
+    return;
+  }
+
+  if (!specialty) {
+    roomPassportTitle.textContent = "";
+    roomPassportDescription.textContent = "";
+    return;
+  }
+
+  roomPassportTitle.textContent = specialty.title || specialty.code || "";
+  roomPassportDescription.textContent = specialty.description || "";
+}
+
 function renderActiveEquipment(equipment) {
+  renderRoomPassport(findSpecialty(activeSpecialtyId));
+
   localViewer.setAttribute("aria-label", `Интерактивная 3D модель: ${equipment.title}`);
   equipmentShape.dataset.variant = equipment.variant || "sensor";
   equipmentType.textContent = equipment.type;
@@ -493,6 +512,7 @@ function storeAdminToken(token) {
 }
 
 function renderEquipmentNotFound() {
+  renderRoomPassport(findSpecialty(activeSpecialtyId));
   equipmentType.textContent = "";
   equipmentTitle.textContent = "Объект не найден";
   equipmentDescription.textContent =

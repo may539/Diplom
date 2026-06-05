@@ -44,12 +44,12 @@
         <form id="equipment-form" class="admin-form" enctype="multipart/form-data" method="post">
           <input type="hidden" name="equipmentId" id="equipment-id" value="" />
           <label>
-            Специальность *
+            Лабораторная аудитория / Кабинет *
             <select name="specialtyId" id="specialty-select" required></select>
           </label>
 
           <label>
-            Название модели *
+            Наименование оборудования (стенда, макета) *
             <input type="text" name="title" required />
           </label>
 
@@ -100,7 +100,7 @@
 
           <div class="admin-form__actions">
             <button class="button button--primary" type="submit" id="form-submit">
-              Добавить модель и сгенерировать QR
+              Внести в паспорт и создать QR-код
             </button>
             <button class="button button--ghost" type="button" id="cancel-edit" hidden>
               Отменить редактирование
