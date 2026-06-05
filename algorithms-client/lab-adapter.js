@@ -126,6 +126,18 @@
       .join(" · ");
   }
 
+  function stripLegacyMarkers(text) {
+    return String(text || "")
+      .split(/\s*·\s*/)
+      .map((part) => part.trim())
+      .map((part) => {
+        const legacyTail = part.match(/^(?:ОИБ|ПД|ЗЕМ)\s+(.+)$/iu);
+        return legacyTail ? legacyTail[1].trim() : part;
+      })
+      .filter((part) => part && !CODE_TO_ID[part.toUpperCase()])
+      .join(" · ");
+  }
+
   function categoryFromType(type) {
     const raw = String(type || "").trim();
     if (!raw) {
@@ -133,15 +145,20 @@
     }
 
     const parts = raw.split("·").map((part) => part.trim()).filter(Boolean);
-    if (parts.length <= 1) {
-      return capitalizeCategory(raw);
+    let category = raw;
+
+    if (parts.length > 1) {
+      const first = parts[0].toUpperCase();
+      const legacyPrefix = Boolean(CODE_TO_ID[first]);
+      const roomPrefix = /^КАБ\.\s*\d+/i.test(parts[0]);
+      category = legacyPrefix || roomPrefix ? parts.slice(1).join(" · ") : parts.join(" · ");
+    } else {
+      const legacyTail = raw.match(/^(?:ОИБ|ПД|ЗЕМ)\s+(.+)$/iu);
+      category = legacyTail ? legacyTail[1] : raw;
     }
 
-    const first = parts[0].toUpperCase();
-    const legacyPrefix = Boolean(CODE_TO_ID[first]);
-    const roomPrefix = /^КАБ\.\s*\d+/i.test(parts[0]);
-    const category = legacyPrefix || roomPrefix ? parts.slice(1).join(" · ") : parts.join(" · ");
-    return capitalizeCategory(category);
+    const cleaned = stripLegacyMarkers(category) || category;
+    return capitalizeCategory(cleaned);
   }
 
   function formatEquipmentType(type, specialty) {

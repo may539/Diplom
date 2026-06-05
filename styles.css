@@ -584,8 +584,9 @@ a {
     "viewer details";
   align-self: start;
   width: 100%;
-  max-width: 1180px;
-  margin-inline: auto;
+  min-width: 0;
+  max-width: none;
+  margin-inline: 0;
   overflow: hidden;
 }
 
@@ -597,12 +598,17 @@ a {
   grid-area: passport;
   align-self: start;
   min-width: 0;
-  max-width: 400px;
+  max-width: none;
   padding: 28px 26px 0;
+  border-bottom: none;
 }
 
 .workspace-area-details {
   grid-area: details;
+}
+
+.workspace-area-details.viewer-info {
+  padding-top: 0;
 }
 
 .viewer-shell {
@@ -1530,6 +1536,23 @@ model-viewer.equipment-model-viewer {
   padding-bottom: 26px;
 }
 
+.admin-intro__brand {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.admin-intro__brand .eyebrow {
+  margin: 0;
+}
+
+.admin-logo {
+  height: 40px;
+  margin-right: 15px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .admin-intro {
   max-width: 860px;
 }
@@ -1545,7 +1568,7 @@ model-viewer.equipment-model-viewer {
 .admin-card {
   max-width: 900px;
   margin: 0 auto;
-  padding: 30px;
+  padding: 32px 30px 30px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg-card);
@@ -1556,39 +1579,25 @@ main.section .admin-card + .admin-card {
   margin-top: 28px;
 }
 
-.admin-card__header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 20px;
-  text-align: center;
-}
-
-.admin-card__logo {
-  display: block;
-  max-height: 50px;
-  width: auto;
-  object-fit: contain;
-}
-
-.admin-card__heading {
-  width: 100%;
+main.section > .admin-card:first-child {
+  margin-top: 4px;
 }
 
 .admin-card h2 {
   margin-top: 0;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .admin-card__hint {
-  margin-top: 0;
+  margin: 0 0 22px;
   color: var(--muted);
+  line-height: 1.55;
 }
 
 .admin-form {
   display: grid;
   gap: 16px;
+  margin-top: 4px;
 }
 
 .admin-form label {
@@ -1615,20 +1624,27 @@ main.section .admin-card + .admin-card {
 }
 
 .admin-form select {
-  color-scheme: light;
-  background-color: rgba(15, 23, 42, 0.94);
-  color: #f8fafc;
+  color-scheme: dark;
+  background-color: #1e293b;
+  color: #ffffff;
   cursor: pointer;
 }
 
+.admin-form select:focus,
+.admin-form select:active {
+  background-color: #1e293b;
+  color: #ffffff;
+}
+
 .admin-form select option {
-  color: #111827;
-  background-color: #ffffff;
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  padding: 10px !important;
 }
 
 .admin-form select option:disabled {
-  color: #6b7280;
-  background-color: #f3f4f6;
+  background-color: #334155 !important;
+  color: #94a3b8 !important;
 }
 
 .admin-form input:focus,
@@ -1918,12 +1934,11 @@ body.focus-viewer .section--viewer .section__header {
   }
 
   .admin-card {
-    padding: 22px 18px;
+    padding: 24px 18px 22px;
   }
 
-  .admin-card__header {
-    align-items: flex-start;
-    text-align: left;
+  .admin-card__hint {
+    margin-bottom: 18px;
   }
 
   .admin-catalog__item {

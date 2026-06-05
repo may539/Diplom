@@ -26,7 +26,16 @@
       </nav>
 
       <div class="admin-intro">
-        <p class="eyebrow">Админ-панель</p>
+        <div class="admin-intro__brand">
+          <img
+            class="admin-logo"
+            src="apek-logo.png"
+            width="120"
+            height="40"
+            alt="Эмблема Алтайского Промышленно-Экономического колледжа"
+          />
+          <p class="eyebrow">Админ-панель</p>
+        </div>
         <h1>Загрузка моделей и выпуск QR-кодов</h1>
         <p class="hero__lead">
           Заполните карточку оборудования, укажите URL GLB или загрузите файл. После сохранения
@@ -37,22 +46,11 @@
 
     <main class="section">
       <article class="admin-card" id="admin-form" aria-labelledby="admin-form-title">
-        <header class="admin-card__header">
-          <img
-            class="admin-card__logo"
-            src="apek-logo.png"
-            width="160"
-            height="50"
-            alt="Эмблема Алтайского Промышленно-Экономического колледжа"
-          />
-          <div class="admin-card__heading">
-            <h2 id="admin-form-title">Регистрация оборудования в паспорте кабинета</h2>
-            <p class="admin-card__hint">
-              Доступ открыт после ввода пароля на главной странице. Укажите URL модели
-              <strong>или</strong> загрузите файл .glb.
-            </p>
-          </div>
-        </header>
+        <h2 id="admin-form-title">Регистрация оборудования в паспорте кабинета</h2>
+        <p class="admin-card__hint">
+          Доступ открыт после ввода пароля на главной странице. Укажите URL модели
+          <strong>или</strong> загрузите файл .glb.
+        </p>
         <form id="equipment-form" class="admin-form" enctype="multipart/form-data" method="post">
           <input type="hidden" name="equipmentId" id="equipment-id" value="" />
           <label>
