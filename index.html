@@ -118,13 +118,6 @@
           </aside>
 
           <article class="viewer-card">
-            <section class="room-passport workspace-area-passport" id="room-passport" aria-labelledby="room-passport-label">
-              <p class="room-passport__label" id="room-passport-label">ПАСПОРТ АУДИТОРИИ</p>
-              <h4 class="room-passport__title" id="room-passport-title"></h4>
-              <p class="room-passport__description" id="room-passport-description"></p>
-              <hr class="room-passport__divider" />
-            </section>
-
             <div class="viewer-shell workspace-area-viewer">
               <div class="local-viewer" id="local-viewer" role="img" aria-label="Интерактивный 3D макет оборудования">
                 <model-viewer
@@ -184,23 +177,32 @@
               </div>
             </div>
 
-            <div class="viewer-info workspace-area-details">
-              <p class="eyebrow" id="equipment-type">Датчик</p>
-              <h3 id="equipment-title">Учебный объект</h3>
-              <p id="equipment-description"></p>
-              <div class="annotation-panel" id="annotation-panel">
-                Выберите точку на модели, чтобы увидеть аннотацию.
+            <aside class="viewer-sidebar workspace-area-sidebar" aria-label="Паспорт аудитории и описание оборудования">
+              <section class="room-passport workspace-area-passport" id="room-passport" aria-labelledby="room-passport-label">
+                <p class="room-passport__label" id="room-passport-label">ПАСПОРТ АУДИТОРИИ</p>
+                <h4 class="room-passport__title" id="room-passport-title"></h4>
+                <p class="room-passport__description" id="room-passport-description"></p>
+                <hr class="room-passport__divider" />
+              </section>
+
+              <div class="viewer-info workspace-area-details">
+                <p class="eyebrow" id="equipment-type">Датчик</p>
+                <h3 id="equipment-title">Учебный объект</h3>
+                <p id="equipment-description"></p>
+                <div class="annotation-panel" id="annotation-panel">
+                  Выберите точку на модели, чтобы увидеть аннотацию.
+                </div>
+                <ul class="feature-list" id="equipment-features"></ul>
+                <div class="viewer-info__actions">
+                  <button class="button button--ghost" id="wireframe-toggle" type="button" aria-pressed="true">
+                    Автопрокрутка: вкл
+                  </button>
+                  <a class="button button--ghost" id="model-link" href="#" target="_blank" rel="noreferrer">
+                    Открыть GLB-источник
+                  </a>
+                </div>
               </div>
-              <ul class="feature-list" id="equipment-features"></ul>
-              <div class="viewer-info__actions">
-                <button class="button button--ghost" id="wireframe-toggle" type="button" aria-pressed="true">
-                  Автопрокрутка: вкл
-                </button>
-                <a class="button button--ghost" id="model-link" href="#" target="_blank" rel="noreferrer">
-                  Открыть GLB-источник
-                </a>
-              </div>
-            </div>
+            </aside>
           </article>
         </div>
       </section>
