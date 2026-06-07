@@ -41,6 +41,34 @@ const legacySeedEquipmentIds = [
   "survey-point",
   "cadastre-parcel",
 ];
+const seedModelAliases = {
+  "video-surveillance-complex": [
+    "Комплекс видеонаблюдения",
+    "видеонаблюдение",
+    "video surveillance",
+    "video-surveillance",
+    "surveillance",
+    "cctv",
+  ],
+  "ip-camera": ["IP-камера", "ip camera", "ip-camera", "ipcamera"],
+  "forensic-kit": [
+    "Криминалистический набор",
+    "криминалистика",
+    "forensic kit",
+    "forensic",
+    "criminalistic",
+  ],
+  "electroshock-device": ["Электрошокер", "electroshock", "shocker", "taser", "elektroshoker"],
+  "electronic-tachymeter": [
+    "Электронный тахеометр",
+    "тахеометр",
+    "tachymeter",
+    "tacheometer",
+    "total station",
+    "total-station",
+    "taheometr",
+  ],
+};
 const sevenDaysInSeconds = 7 * 24 * 60 * 60;
 const modelStaticOptions = {
   index: false,
@@ -207,6 +235,214 @@ function placeholders(values) {
   return values.map(() => "?").join(", ");
 }
 
+function transliterateRu(value) {
+  const map = {
+    а: "a",
+    б: "b",
+    в: "v",
+    г: "g",
+    д: "d",
+    е: "e",
+    ё: "e",
+    ж: "zh",
+    з: "z",
+    и: "i",
+    й: "y",
+    к: "k",
+    л: "l",
+    м: "m",
+    н: "n",
+    о: "o",
+    п: "p",
+    р: "r",
+    с: "s",
+    т: "t",
+    у: "u",
+    ф: "f",
+    х: "h",
+    ц: "ts",
+    ч: "ch",
+    ш: "sh",
+    щ: "sch",
+    ъ: "",
+    ы: "y",
+    ь: "",
+    э: "e",
+    ю: "yu",
+    я: "ya",
+  };
+
+  return String(value)
+    .toLowerCase()
+    .split("")
+    .map((char) => map[char] ?? char)
+    .join("");
+}
+
+function compactModelName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+function modelNameVariants(value) {
+  return [...new Set([compactModelName(value), compactModelName(transliterateRu(value))].filter(Boolean))];
+}
+
+function localModelFilename(modelUrl) {
+  const value = String(modelUrl || "").split("?")[0].trim();
+  if (!value.startsWith("/models/")) {
+    return "";
+  }
+
+  try {
+    return decodeURIComponent(path.basename(value));
+  } catch {
+    return path.basename(value);
+  }
+}
+
+function isGlbFilename(filename) {
+  return String(filename || "").toLowerCase().endsWith(".glb");
+}
+
+async function listLocalGlbModels() {
+  const dirs = [modelsPublicDir, path.join(rootDir, "models")];
+  const files = [];
+
+  for (const dir of dirs) {
+    let entries = [];
+    try {
+      entries = await fsp.readdir(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isFile() || !isGlbFilename(entry.name)) {
+        continue;
+      }
+
+      const basename = path.basename(entry.name, path.extname(entry.name));
+      files.push({
+        filename: entry.name,
+        publicPath: `/models/${entry.name}`,
+        diskPath: path.join(dir, entry.name),
+        variants: modelNameVariants(basename),
+      });
+    }
+  }
+
+  return files;
+}
+
+function findLocalModelFile(modelUrl, localModels) {
+  const filename = localModelFilename(modelUrl);
+  if (!filename) {
+    return null;
+  }
+
+  return localModels.find((file) => file.filename.toLowerCase() === filename.toLowerCase()) || null;
+}
+
+function seedAliases(equipment) {
+  const modelFilename = localModelFilename(equipment.model);
+  const modelBasename = modelFilename ? path.basename(modelFilename, path.extname(modelFilename)) : "";
+  return [
+    equipment.title,
+    equipment.id,
+    modelBasename,
+    ...(seedModelAliases[equipment.id] || []),
+  ].flatMap(modelNameVariants);
+}
+
+function scoreLocalModel(file, aliases) {
+  let score = 0;
+  for (const fileVariant of file.variants) {
+    for (const alias of aliases) {
+      if (fileVariant === alias) {
+        score = Math.max(score, 100 + alias.length);
+      } else if (alias.length >= 4 && fileVariant.includes(alias)) {
+        score = Math.max(score, 80 + alias.length);
+      } else if (fileVariant.length >= 4 && alias.includes(fileVariant)) {
+        score = Math.max(score, 60 + fileVariant.length);
+      }
+    }
+  }
+  return score;
+}
+
+function scoreTextAgainstAliases(value, aliases) {
+  return scoreLocalModel({ variants: modelNameVariants(value) }, aliases);
+}
+
+async function modelMetadataFor(file) {
+  if (!file) {
+    return { modelFileSize: null, modelFileHash: null };
+  }
+
+  try {
+    return await computeFileMetadata(file.diskPath);
+  } catch {
+    return { modelFileSize: null, modelFileHash: null };
+  }
+}
+
+async function resolveSeedModel(equipment, existingRow, existingLocalRows, localModels) {
+  const exactSeedFile = findLocalModelFile(equipment.model, localModels);
+  if (exactSeedFile) {
+    return {
+      model: exactSeedFile.publicPath,
+      ...(await modelMetadataFor(exactSeedFile)),
+    };
+  }
+
+  const existingFile = findLocalModelFile(existingRow?.model, localModels);
+  if (existingFile) {
+    return {
+      model: existingFile.publicPath,
+      ...(await modelMetadataFor(existingFile)),
+    };
+  }
+
+  const aliases = seedAliases(equipment);
+  const matchedExistingRow = existingLocalRows
+    .map((row) => ({
+      row,
+      file: findLocalModelFile(row.model, localModels),
+      score: Math.max(scoreTextAgainstAliases(row.title, aliases), scoreTextAgainstAliases(row.id, aliases)),
+    }))
+    .filter((candidate) => candidate.file && candidate.score > 0)
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (matchedExistingRow) {
+    return {
+      model: matchedExistingRow.file.publicPath,
+      ...(await modelMetadataFor(matchedExistingRow.file)),
+    };
+  }
+
+  const matchedFile = localModels
+    .map((file) => ({ file, score: scoreLocalModel(file, aliases) }))
+    .filter((candidate) => candidate.score > 0)
+    .sort((a, b) => b.score - a.score)[0]?.file;
+
+  if (matchedFile) {
+    return {
+      model: matchedFile.publicPath,
+      ...(await modelMetadataFor(matchedFile)),
+    };
+  }
+
+  return {
+    model: equipment.model,
+    modelFileSize: null,
+    modelFileHash: null,
+  };
+}
+
 function isValidEquipmentId(value) {
   return typeof value === "string" && equipmentIdPattern.test(value);
 }
@@ -311,6 +547,17 @@ async function initDb() {
     (specialty.equipment || []).map((equipment) => equipment.id),
   );
   const obsoleteLegacyIds = legacySeedEquipmentIds.filter((id) => !seedEquipmentIds.includes(id));
+  const localModels = await listLocalGlbModels();
+  const existingEquipmentRows = seedEquipmentIds.length
+    ? await all(
+        `SELECT id, model FROM equipment WHERE id IN (${placeholders(seedEquipmentIds)})`,
+        seedEquipmentIds,
+      )
+    : [];
+  const existingEquipmentById = new Map(existingEquipmentRows.map((row) => [row.id, row]));
+  const existingLocalModelRows = await all(
+    "SELECT id, title, model FROM equipment WHERE model LIKE '/models/%'",
+  );
 
   await run("BEGIN TRANSACTION");
   try {
@@ -335,11 +582,17 @@ async function initDb() {
       );
 
       for (const [equipmentIndex, equipment] of (specialty.equipment || []).entries()) {
+        const resolvedModel = await resolveSeedModel(
+          equipment,
+          existingEquipmentById.get(equipment.id),
+          existingLocalModelRows,
+          localModels,
+        );
         await run(
           `INSERT INTO equipment
             (id, specialty_id, title, type, short, description, features_json, model,
              environment, variant, hotspots_json, sort_order, model_file_size, model_file_hash)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET
              specialty_id = excluded.specialty_id,
              title = excluded.title,
@@ -352,8 +605,8 @@ async function initDb() {
              variant = excluded.variant,
              hotspots_json = excluded.hotspots_json,
              sort_order = excluded.sort_order,
-             model_file_size = NULL,
-             model_file_hash = NULL`,
+             model_file_size = excluded.model_file_size,
+             model_file_hash = excluded.model_file_hash`,
           [
             equipment.id,
             specialty.id,
@@ -362,11 +615,13 @@ async function initDb() {
             equipment.short,
             equipment.description,
             JSON.stringify(normalizeArray(equipment.features)),
-            equipment.model,
+            resolvedModel.model,
             equipment.environment || "neutral",
             equipment.variant || "sensor",
             JSON.stringify(Array.isArray(equipment.hotspots) ? equipment.hotspots : []),
             equipmentIndex,
+            resolvedModel.modelFileSize,
+            resolvedModel.modelFileHash,
           ],
         );
       }
