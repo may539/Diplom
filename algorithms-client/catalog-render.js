@@ -29,7 +29,7 @@
 
   function renderEquipmentListHtml(items) {
     if (!items.length) {
-      return '<p class="equipment-list__empty">Для этой специальности пока нет объектов.</p>';
+      return '<p class="equipment-list__empty">Для этой аудитории пока нет оборудования.</p>';
     }
     return items
       .map(

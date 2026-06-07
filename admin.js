@@ -131,9 +131,9 @@ function setEditMode(item) {
 
 function clearEditMode() {
   equipmentIdInput.value = "";
-  formSubmitButton.textContent = "Добавить модель и сгенерировать QR";
+  formSubmitButton.textContent = "Внести в паспорт и создать QR-код";
   cancelEditButton.hidden = true;
-  document.querySelector("#admin-form-title").textContent = "Новая 3D-модель";
+  document.querySelector("#admin-form-title").textContent = "Регистрация оборудования в паспорте кабинета";
   equipmentForm.reset();
 }
 
@@ -151,18 +151,21 @@ async function loadSpecialties() {
     }
 
     if (!response.ok) {
-      throw new Error("Не удалось получить специальности.");
+      throw new Error("Не удалось получить список аудиторий.");
     }
 
     const specialties = await response.json();
     specialtySelect.innerHTML = specialties
-      .map((item) => `<option value="${item.id}">${item.code} — ${item.title}</option>`)
+      .map((item) => {
+        const label = window.LabAdapter ? window.LabAdapter.formatSelectLabel(item) : `${item.code} — ${item.title}`;
+        return `<option value="${item.id}">${escapeHtml(label)}</option>`;
+      })
       .join("");
     setFormDisabled(false);
   } catch (error) {
     specialtySelect.innerHTML = "";
     setFormDisabled(true);
-    setStatus("Ошибка загрузки специальностей. Проверьте, что сервер запущен.", true);
+    setStatus("Ошибка загрузки списка аудиторий. Проверьте, что сервер запущен.", true);
   }
 }
 
@@ -196,7 +199,14 @@ async function loadCatalog() {
           <article class="admin-catalog__item" data-id="${escapeHtml(item.id)}">
             <div class="admin-catalog__meta">
               <strong>${escapeHtml(item.title)}</strong>
-              <span>${escapeHtml(item.specialtyCode || "")} · ${escapeHtml(item.type || "")}</span>
+              <span>${escapeHtml(
+                window.LabAdapter
+                  ? window.LabAdapter.formatEquipmentType(item.type, {
+                      id: item.specialtyId,
+                      code: item.specialtyCode,
+                    })
+                  : `${item.specialtyCode || ""} · ${item.type || ""}`,
+              )}</span>
               <span class="admin-catalog__id">${escapeHtml(item.id)}</span>
             </div>
             <div class="admin-catalog__actions">
