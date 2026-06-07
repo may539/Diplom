@@ -11,6 +11,7 @@ const equipmentFeatures = document.querySelector("#equipment-features");
 const modelLink = document.querySelector("#model-link");
 const localViewer = document.querySelector("#local-viewer");
 const localScene = document.querySelector("#local-scene");
+const viewerShell = document.querySelector(".viewer-shell");
 const equipmentModelViewer = document.querySelector("#equipment-model-viewer");
 const equipmentShape = document.querySelector("#equipment-shape");
 const hotspotLayer = document.querySelector("#hotspot-layer");
@@ -48,6 +49,10 @@ const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.8;
 const MODEL_CAMERA_RADIUS_MIN = 70;
 const MODEL_CAMERA_RADIUS_MAX = 320;
+const VIEWER_SHELL_MIN = 280;
+const VIEWER_SHELL_MAX_W = 560;
+const VIEWER_SHELL_MAX_H = 520;
+const VIEWER_SHELL_BASE = 420;
 const MODEL_CAMERA_RADIUS_DEFAULT = 165;
 const ADMIN_TOKEN_KEY = "adminToken";
 const ACTIVE_SPECIALTY_ID = "pd";
@@ -186,6 +191,62 @@ function setModelCameraRadius(nextRadius) {
   modelCameraRadius = Math.max(MODEL_CAMERA_RADIUS_MIN, Math.min(MODEL_CAMERA_RADIUS_MAX, nextRadius));
   equipmentModelViewer?.setAttribute("camera-orbit", `auto auto ${modelCameraRadius.toFixed(1)}%`);
   syncZoomControls();
+}
+
+function fitViewerShellToModel(modelViewer = equipmentModelViewer) {
+  if (!viewerShell) {
+    return;
+  }
+
+  let aspect = 1;
+
+  try {
+    const dims = modelViewer?.getDimensions?.();
+    if (dims && dims.x > 0 && dims.y > 0) {
+      const horizontal = Math.max(dims.x, dims.z);
+      aspect = horizontal / dims.y;
+    }
+  } catch {
+    aspect = 1;
+  }
+
+  let width;
+  let height;
+
+  if (aspect >= 1) {
+    width = Math.min(VIEWER_SHELL_MAX_W, Math.max(VIEWER_SHELL_MIN, VIEWER_SHELL_BASE * Math.sqrt(aspect)));
+    height = Math.min(VIEWER_SHELL_MAX_H, Math.max(VIEWER_SHELL_MIN, width / aspect));
+    if (height > VIEWER_SHELL_MAX_H) {
+      height = VIEWER_SHELL_MAX_H;
+      width = Math.min(VIEWER_SHELL_MAX_W, height * aspect);
+    }
+  } else {
+    height = Math.min(VIEWER_SHELL_MAX_H, Math.max(VIEWER_SHELL_MIN, VIEWER_SHELL_BASE / Math.sqrt(aspect)));
+    width = Math.min(VIEWER_SHELL_MAX_W, Math.max(VIEWER_SHELL_MIN, height * aspect));
+    if (width > VIEWER_SHELL_MAX_W) {
+      width = VIEWER_SHELL_MAX_W;
+      height = Math.max(VIEWER_SHELL_MIN, width / aspect);
+    }
+  }
+
+  const parentWidth = viewerShell.parentElement?.clientWidth || VIEWER_SHELL_MAX_W;
+  const maxWidth = Math.min(VIEWER_SHELL_MAX_W, Math.max(VIEWER_SHELL_MIN, parentWidth));
+  if (width > maxWidth) {
+    width = maxWidth;
+    height = Math.max(VIEWER_SHELL_MIN, width / aspect);
+  }
+
+  const maxHeight = Math.min(
+    VIEWER_SHELL_MAX_H,
+    Math.round(window.innerHeight * (window.innerWidth <= 940 ? 0.56 : 0.7)),
+  );
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = Math.max(VIEWER_SHELL_MIN, Math.min(maxWidth, height * aspect));
+  }
+
+  viewerShell.style.width = `${Math.round(width)}px`;
+  viewerShell.style.height = `${Math.round(height)}px`;
 }
 
 function renderSpecialties() {
@@ -466,6 +527,7 @@ function renderActiveEquipment(equipment) {
         if (typeof fixModelMaterials === "function") {
           fixModelMaterials(equipmentModelViewer);
         }
+        fitViewerShellToModel(equipmentModelViewer);
         renderAnnotation(activeHotspots, activeHotspotIndex);
       });
     }
@@ -1045,6 +1107,16 @@ window.addEventListener("pageshow", async (event) => {
   } catch (error) {
     console.error(error);
   }
+});
+
+let viewerShellResizeTimer = 0;
+window.addEventListener("resize", () => {
+  window.clearTimeout(viewerShellResizeTimer);
+  viewerShellResizeTimer = window.setTimeout(() => {
+    if (equipmentModelViewer?.src) {
+      fitViewerShellToModel(equipmentModelViewer);
+    }
+  }, 120);
 });
 
 init();
