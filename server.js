@@ -32,6 +32,15 @@ const dbPath = path.join(rootDir, "data", "equipment.sqlite");
 const scanLogPath = path.join(rootDir, "logs", "scan.log");
 const db = new sqlite3.Database(dbPath);
 const equipmentIdPattern = /^[a-zA-Z0-9-]+$/;
+const legacySeedEquipmentIds = [
+  "security-sensor",
+  "access-terminal",
+  "training-rifle",
+  "body-armor",
+  "terrain-relief",
+  "survey-point",
+  "cadastre-parcel",
+];
 const sevenDaysInSeconds = 7 * 24 * 60 * 60;
 const modelStaticOptions = {
   index: false,
@@ -175,6 +184,7 @@ function parseJsonArray(value) {
 function normalizeEquipmentRow(row) {
   return {
     id: row.id,
+    name: row.title,
     title: row.title,
     type: row.type,
     short: row.short,
@@ -191,6 +201,10 @@ function normalizeEquipmentRow(row) {
     modelFileSize: row.model_file_size ?? null,
     modelFileHash: row.model_file_hash ?? null,
   };
+}
+
+function placeholders(values) {
+  return values.map(() => "?").join(", ");
 }
 
 function isValidEquipmentId(value) {
@@ -293,48 +307,75 @@ async function initDb() {
   }
 
   const seedSpecialties = readJsonSeed();
-  const seedEquipment = seedSpecialties.flatMap((specialty) => specialty.equipment || []);
-  for (const equipment of seedEquipment) {
-    await run(
-      `UPDATE equipment
-       SET hotspots_json = ?
-       WHERE id = ?
-         AND (hotspots_json IS NULL OR hotspots_json = '[]' OR hotspots_json = 'null')`,
-      [JSON.stringify(Array.isArray(equipment.hotspots) ? equipment.hotspots : []), equipment.id],
-    );
-  }
+  const seedEquipmentIds = seedSpecialties.flatMap((specialty) =>
+    (specialty.equipment || []).map((equipment) => equipment.id),
+  );
+  const obsoleteLegacyIds = legacySeedEquipmentIds.filter((id) => !seedEquipmentIds.includes(id));
 
-  const countRow = await get("SELECT COUNT(*) AS count FROM specialties");
-  if ((countRow?.count || 0) > 0) {
-    return;
-  }
-
-  for (const [index, specialty] of seedSpecialties.entries()) {
-    await run(
-      "INSERT INTO specialties (id, code, title, description, sort_order) VALUES (?, ?, ?, ?, ?)",
-      [specialty.id, specialty.code, specialty.title, specialty.description, index],
-    );
-
-    for (const equipment of specialty.equipment || []) {
+  await run("BEGIN TRANSACTION");
+  try {
+    if (obsoleteLegacyIds.length) {
       await run(
-        `INSERT INTO equipment
-          (id, specialty_id, title, type, short, description, features_json, model, environment, variant, hotspots_json)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          equipment.id,
-          specialty.id,
-          equipment.title,
-          equipment.type,
-          equipment.short,
-          equipment.description,
-          JSON.stringify(normalizeArray(equipment.features)),
-          equipment.model,
-          equipment.environment || "neutral",
-          equipment.variant || "sensor",
-          JSON.stringify(Array.isArray(equipment.hotspots) ? equipment.hotspots : []),
-        ],
+        `DELETE FROM equipment WHERE id IN (${placeholders(obsoleteLegacyIds)})`,
+        obsoleteLegacyIds,
       );
     }
+
+    for (const [specialtyIndex, specialty] of seedSpecialties.entries()) {
+      await run(
+        `INSERT INTO specialties (id, code, title, description, sort_order, parent_id)
+         VALUES (?, ?, ?, ?, ?, NULL)
+         ON CONFLICT(id) DO UPDATE SET
+           code = excluded.code,
+           title = excluded.title,
+           description = excluded.description,
+           sort_order = excluded.sort_order,
+           parent_id = NULL`,
+        [specialty.id, specialty.code, specialty.title, specialty.description, specialtyIndex],
+      );
+
+      for (const [equipmentIndex, equipment] of (specialty.equipment || []).entries()) {
+        await run(
+          `INSERT INTO equipment
+            (id, specialty_id, title, type, short, description, features_json, model,
+             environment, variant, hotspots_json, sort_order, model_file_size, model_file_hash)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
+           ON CONFLICT(id) DO UPDATE SET
+             specialty_id = excluded.specialty_id,
+             title = excluded.title,
+             type = excluded.type,
+             short = excluded.short,
+             description = excluded.description,
+             features_json = excluded.features_json,
+             model = excluded.model,
+             environment = excluded.environment,
+             variant = excluded.variant,
+             hotspots_json = excluded.hotspots_json,
+             sort_order = excluded.sort_order,
+             model_file_size = NULL,
+             model_file_hash = NULL`,
+          [
+            equipment.id,
+            specialty.id,
+            equipment.title,
+            equipment.type,
+            equipment.short,
+            equipment.description,
+            JSON.stringify(normalizeArray(equipment.features)),
+            equipment.model,
+            equipment.environment || "neutral",
+            equipment.variant || "sensor",
+            JSON.stringify(Array.isArray(equipment.hotspots) ? equipment.hotspots : []),
+            equipmentIndex,
+          ],
+        );
+      }
+    }
+
+    await run("COMMIT");
+  } catch (error) {
+    await run("ROLLBACK").catch(() => {});
+    throw error;
   }
 }
 
@@ -344,9 +385,10 @@ async function readSpecialties() {
   );
   const equipmentRows = await all(
     `SELECT id, specialty_id, title, type, short, description, features_json, model, environment, variant, hotspots_json,
+            sort_order,
             model_file_size, model_file_hash
      FROM equipment
-     ORDER BY created_at ASC, title ASC`,
+     ORDER BY specialty_id ASC, sort_order ASC, title ASC`,
   );
 
   const bySpecialty = new Map();
@@ -360,6 +402,7 @@ async function readSpecialties() {
 
   return specialties.map((specialty) => ({
     ...specialty,
+    name: specialty.title,
     equipment: bySpecialty.get(specialty.id) || [],
   }));
 }
@@ -390,6 +433,7 @@ async function findEquipment(equipmentId) {
        e.environment,
        e.variant,
        e.hotspots_json,
+       e.sort_order,
        e.model_file_size,
        e.model_file_hash,
        s.code AS specialty_code,
@@ -1009,10 +1053,6 @@ app.get(["/app.js", "/equipment/app.js"], (_req, res) => {
 
 app.get(["/styles.css", "/equipment/styles.css"], (_req, res) => {
   res.sendFile(path.join(rootDir, "styles.css"));
-});
-
-app.get(["/data/equipment-data.js", "/equipment/data/equipment-data.js"], (_req, res) => {
-  res.sendFile(path.join(rootDir, "data", "equipment-data.js"));
 });
 
 app.get("/catalog/:equipmentId", validateEquipmentIdParam, async (req, res, next) => {

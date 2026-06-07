@@ -5,7 +5,7 @@
 | Модуль | Приложение | Сервер | Клиент |
 |--------|------------|--------|--------|
 | Дерево специальностей | А | `server/algorithms/specialty-tree.js` | `algorithms-client/specialty-tree.js` |
-| Каталог экспонатов | Б | `server/algorithms/equipment-catalog.js` | `algorithms-client/catalog-render.js` |
+| Каталог экспонатов | Б | `server/algorithms/equipment-catalog.js` | `app.js` (прямой вывод данных API) |
 | Добавление + QR | В | `server/algorithms/equipment-create.js`, `file-metadata.js` | `admin.js` (форма) |
 | Редактирование | Г | `server/algorithms/equipment-update.js` | `admin.js` |
 | Логирование QR | Д | `server/algorithms/scan-log.js` | `view.js` |

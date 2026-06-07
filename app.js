@@ -50,7 +50,6 @@ const MODEL_CAMERA_RADIUS_MIN = 70;
 const MODEL_CAMERA_RADIUS_MAX = 320;
 const MODEL_CAMERA_RADIUS_DEFAULT = 165;
 const ADMIN_TOKEN_KEY = "adminToken";
-const ACTIVE_SPECIALTY_ID = "pd";
 
 function escapeHtml(value) {
   return String(value)
@@ -75,21 +74,7 @@ function findSpecialty(id) {
 }
 
 function getDefaultSpecialty() {
-  return specialties.find((specialty) => specialty.id === ACTIVE_SPECIALTY_ID) || specialties[0];
-}
-
-function isSpecialtyAvailable(specialtyId) {
-  if (window.LabAdapter) {
-    return window.LabAdapter.isLabAvailable(specialtyId);
-  }
-  return specialtyId === ACTIVE_SPECIALTY_ID;
-}
-
-function adaptLoadedSpecialties(data) {
-  if (window.LabAdapter) {
-    return window.LabAdapter.adaptSpecialties(data);
-  }
-  return data;
+  return specialties[0];
 }
 
 function findEquipmentStrict(id) {
@@ -109,9 +94,10 @@ function findEquipment(id) {
     return found;
   }
 
+  const fallbackSpecialty = getDefaultSpecialty();
   return {
-    specialty: getDefaultSpecialty(),
-    equipment: getDefaultSpecialty().equipment[0],
+    specialty: fallbackSpecialty,
+    equipment: fallbackSpecialty?.equipment?.[0],
   };
 }
 
@@ -195,63 +181,25 @@ function renderSpecialties() {
 
   specialtyGrid.hidden = false;
   specialtyGrid.innerHTML = specialties
-    .map((specialty) => {
-      const available = isSpecialtyAvailable(specialty.id);
-      return `
-        <button
-          class="specialty-card${available ? "" : " is-disabled"}"
-          type="button"
-          data-specialty="${escapeHtml(specialty.id)}"
-          ${available ? "" : 'disabled aria-disabled="true"'}
-        >
+    .map(
+      (specialty) => `
+        <button class="specialty-card" type="button" data-specialty="${escapeHtml(specialty.id)}">
           <span class="specialty-card__code">${escapeHtml(specialty.code)}</span>
-          <h3>${escapeHtml(specialty.title)}</h3>
-          <p>${available ? escapeHtml(specialty.description) : "В разработке"}</p>
+          <h3>${escapeHtml(specialty.name || specialty.title)}</h3>
+          <p>${escapeHtml(specialty.description)}</p>
         </button>
-      `;
-    })
+      `,
+    )
     .join("");
 }
 
 async function selectSpecialtyAndLoadCatalog(specialtyId) {
-  if (!isSpecialtyAvailable(specialtyId)) {
-    return;
-  }
-
   activeSpecialtyId = specialtyId;
   const specialty = findSpecialty(specialtyId);
 
-  if (!isFileMode && window.CatalogRenderAlgorithm) {
-    try {
-      const items = await window.CatalogRenderAlgorithm.loadAndRenderCatalog(specialtyId, {
-        equipmentListEl: equipmentList,
-        setActiveEquipmentId: (id) => {
-          activeEquipmentId = id;
-        },
-        applyEquipmentToViewer: async (equipment) => {
-          activeEquipmentDetail = equipment;
-          equipmentDetailError = false;
-          renderActiveEquipment(equipment);
-          setEquipmentRoute(equipment.id);
-          await refreshActiveEquipmentFromApi();
-        },
-        showEmptyCatalog: () => {
-          renderEquipmentNotFound();
-        },
-      });
-      specialties = specialties.map((entry) =>
-        entry.id === specialtyId ? { ...entry, equipment: items } : entry,
-      );
-      activeSpecialtyLabel.textContent = specialty.code;
-      equipmentCount.textContent = `${items.length} объекта`;
-      syncActiveStates();
-      return;
-    } catch (error) {
-      // fallback to embedded catalog below
-    }
-  }
-
   activeEquipmentId = specialty.equipment[0]?.id || "";
+  activeEquipmentDetail = null;
+  equipmentDetailError = false;
   if (activeEquipmentId) {
     setEquipmentRoute(activeEquipmentId);
     await refreshActiveEquipmentFromApi();
@@ -260,6 +208,13 @@ async function selectSpecialtyAndLoadCatalog(specialtyId) {
 }
 
 function renderEquipmentList(specialty) {
+  if (!specialty) {
+    activeSpecialtyLabel.textContent = "";
+    equipmentCount.textContent = "0 объектов";
+    equipmentList.innerHTML = '<p class="equipment-list__empty">Для этой аудитории пока нет оборудования.</p>';
+    return;
+  }
+
   activeSpecialtyLabel.textContent = specialty.code;
   equipmentCount.textContent = `${specialty.equipment.length} объекта`;
 
@@ -417,7 +372,7 @@ function renderRoomPassport(specialty) {
     return;
   }
 
-  roomPassportTitle.textContent = specialty.title || specialty.code || "";
+  roomPassportTitle.textContent = specialty.name || specialty.title || specialty.code || "";
   roomPassportDescription.textContent = specialty.description || "";
 }
 
@@ -426,10 +381,7 @@ function renderActiveEquipment(equipment) {
 
   localViewer.setAttribute("aria-label", `Интерактивная 3D модель: ${equipment.title}`);
   equipmentShape.dataset.variant = equipment.variant || "sensor";
-  const specialty = findSpecialty(activeSpecialtyId);
-  equipmentType.textContent = window.LabAdapter
-    ? window.LabAdapter.formatEquipmentType(equipment.type, specialty)
-    : equipment.type;
+  equipmentType.textContent = equipment.type || "";
   equipmentTitle.textContent = equipment.title;
   equipmentDescription.textContent = equipment.description;
   modelLink.href = equipment.model;
@@ -532,7 +484,7 @@ function render() {
   }
 
   const specialty = findSpecialty(activeSpecialtyId);
-  const catalogEquipment = specialty.equipment.find((item) => item.id === activeEquipmentId);
+  const catalogEquipment = specialty?.equipment.find((item) => item.id === activeEquipmentId);
 
   let equipment =
     activeEquipmentDetail && activeEquipmentDetail.id === activeEquipmentId
@@ -549,7 +501,15 @@ function render() {
   }
 
   if (!equipment) {
-    equipment = specialty.equipment[0];
+    equipment = specialty?.equipment[0];
+    if (!equipment) {
+      renderEquipmentList(specialty);
+      renderEquipmentNotFound();
+      syncActiveStates();
+      syncAutoRotate();
+      syncZoomControls();
+      return;
+    }
     activeEquipmentId = equipment.id;
     activeEquipmentDetail = null;
     equipmentDetailError = false;
@@ -567,8 +527,8 @@ function initFromLocation() {
 
   if (!equipmentId) {
     const specialty = getDefaultSpecialty();
-    activeSpecialtyId = specialty.id;
-    activeEquipmentId = specialty.equipment[0].id;
+    activeSpecialtyId = specialty?.id || "";
+    activeEquipmentId = specialty?.equipment?.[0]?.id || "";
     activeEquipmentDetail = null;
     equipmentDetailError = false;
     return;
@@ -584,15 +544,10 @@ function initFromLocation() {
   }
 
   const specialty = getDefaultSpecialty();
-  const fallback = specialty.equipment[0];
-  activeSpecialtyId = specialty.id;
-  activeEquipmentId = fallback ? fallback.id : equipmentId;
+  activeSpecialtyId = specialty?.id || "";
+  activeEquipmentId = equipmentId;
   activeEquipmentDetail = null;
   equipmentDetailError = false;
-
-  if (fallback && !isFileMode) {
-    setEquipmentRoute(fallback.id, "replace");
-  }
 }
 
 async function refreshActiveEquipmentFromApi() {
@@ -600,8 +555,8 @@ async function refreshActiveEquipmentFromApi() {
   equipmentDetailError = false;
 
   if (isFileMode) {
-    const { equipment } = findEquipment(id);
-    activeEquipmentDetail = { ...equipment };
+    activeEquipmentDetail = null;
+    equipmentDetailError = true;
     return;
   }
 
@@ -620,6 +575,9 @@ async function refreshActiveEquipmentFromApi() {
     }
 
     activeEquipmentDetail = data;
+    if (data.specialtyId) {
+      activeSpecialtyId = data.specialtyId;
+    }
     equipmentDetailError = false;
   } catch {
     activeEquipmentDetail = null;
@@ -777,25 +735,13 @@ function applyInitialViewOptions() {
 }
 
 async function loadData() {
-  if (isFileMode && window.EQUIPMENT_DATA) {
-    specialties = adaptLoadedSpecialties(window.EQUIPMENT_DATA);
-  } else {
-    try {
-      const response = await fetch("/api/specialties", { cache: "no-store" });
+  const response = await fetch("/api/specialties", { cache: "no-store" });
 
-      if (!response.ok) {
-        throw new Error("Specialties API request failed");
-      }
-
-      specialties = adaptLoadedSpecialties(await response.json());
-    } catch (error) {
-      if (!window.EQUIPMENT_DATA) {
-        throw error;
-      }
-
-      specialties = adaptLoadedSpecialties(window.EQUIPMENT_DATA);
-    }
+  if (!response.ok) {
+    throw new Error("Specialties API request failed");
   }
+
+  specialties = await response.json();
 
   if (!specialties.length || !allEquipment().length) {
     throw new Error("Equipment data is empty");
@@ -814,6 +760,7 @@ equipmentList.addEventListener("click", async (event) => {
   if (!button) return;
 
   const { specialty, equipment } = findEquipment(button.dataset.equipment);
+  if (!specialty || !equipment) return;
   activeSpecialtyId = specialty.id;
   activeEquipmentId = equipment.id;
   setEquipmentRoute(equipment.id);

@@ -157,7 +157,7 @@ async function loadSpecialties() {
     const specialties = await response.json();
     specialtySelect.innerHTML = specialties
       .map((item) => {
-        const label = window.LabAdapter ? window.LabAdapter.formatSelectLabel(item) : `${item.code} — ${item.title}`;
+        const label = `${item.code} — ${item.title}`;
         return `<option value="${item.id}">${escapeHtml(label)}</option>`;
       })
       .join("");
@@ -199,14 +199,7 @@ async function loadCatalog() {
           <article class="admin-catalog__item" data-id="${escapeHtml(item.id)}">
             <div class="admin-catalog__meta">
               <strong>${escapeHtml(item.title)}</strong>
-              <span>${escapeHtml(
-                window.LabAdapter
-                  ? window.LabAdapter.formatEquipmentType(item.type, {
-                      id: item.specialtyId,
-                      code: item.specialtyCode,
-                    })
-                  : `${item.specialtyCode || ""} · ${item.type || ""}`,
-              )}</span>
+              <span>${escapeHtml(`${item.specialtyCode || ""} · ${item.type || ""}`)}</span>
               <span class="admin-catalog__id">${escapeHtml(item.id)}</span>
             </div>
             <div class="admin-catalog__actions">

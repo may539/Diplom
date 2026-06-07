@@ -51,7 +51,6 @@
 
   function renderSpecialtyTreeHtml(tree, options) {
     const isAvailable = options?.isAvailable || (() => true);
-    const displayTree = global.LabAdapter ? global.LabAdapter.adaptSpecialtyTree(tree) : tree;
 
     function renderLevel(nodes, depth) {
       if (!nodes.length) {
@@ -81,7 +80,7 @@
         .join("")}</ul>`;
     }
 
-    return renderLevel(displayTree, 0);
+  return renderLevel(tree, 0);
   }
 
   global.SpecialtyTreeAlgorithm = {
