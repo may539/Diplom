@@ -585,8 +585,9 @@ a {
 
 .viewer-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
   min-width: 0;
+  width: 100%;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -639,8 +640,10 @@ a {
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
+  width: 100%;
   height: 100%;
-  min-height: 0;
+  min-height: 320px;
+  min-width: 0;
   max-height: 100%;
   border: none;
   border-radius: 0;
@@ -657,7 +660,7 @@ a {
 model-viewer.equipment-model-viewer {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
@@ -666,12 +669,18 @@ model-viewer.equipment-model-viewer {
   --poster-color: transparent;
 }
 
+.viewer-shell.is-glb-mode .equipment-model-viewer {
+  z-index: 2;
+}
+
 .viewer-shell.is-glb-mode .local-viewer__scene {
   display: none;
 }
 
 .viewer-shell.is-glb-mode .local-viewer {
+  z-index: 3;
   pointer-events: none;
+  background: transparent;
 }
 
 .viewer-shell.is-glb-mode .viewer-zoom-controls,
@@ -707,6 +716,7 @@ model-viewer.equipment-model-viewer {
 .local-viewer {
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: grid;
   place-items: center;
   cursor: grab;
@@ -1892,7 +1902,7 @@ body.focus-viewer .section--viewer .workspace--stage {
 @media (min-width: 941px) {
   .section--viewer .workspace--stage {
     display: grid;
-    grid-template-columns: 300px minmax(0, 1fr);
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
     overflow: hidden;
   }
 
@@ -1902,7 +1912,8 @@ body.focus-viewer .section--viewer .workspace--stage {
   }
 
   .section--viewer .workspace__column--list {
-    width: 300px;
+    width: 100%;
+    max-width: 260px;
     box-sizing: border-box;
     overflow-y: auto;
   }
@@ -1913,7 +1924,8 @@ body.focus-viewer .section--viewer .workspace--stage {
   }
 
   .section--viewer .workspace__column--sidebar {
-    width: 380px;
+    width: 100%;
+    max-width: 340px;
     box-sizing: border-box;
     overflow-y: auto;
   }
@@ -1955,46 +1967,46 @@ body.focus-viewer .section--viewer .workspace--stage {
     grid-template-columns: 1fr;
   }
 
-  .workspace {
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "passport"
-      "viewer"
-      "list"
-      "details";
+  .section--viewer .workspace--stage {
+    display: flex;
+    flex-direction: column;
     gap: 16px;
-  }
-
-  .section--viewer .workspace {
-    height: auto;
+    height: auto !important;
+    max-height: none !important;
     overflow: visible;
   }
 
-  .viewer-card,
+  .viewer-card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+  }
+
   .viewer-sidebar {
-    display: contents;
-    max-width: none;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
   }
 
   .workspace-area-passport {
-    grid-area: passport;
-    max-width: none;
     padding: 20px 20px 0;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--bg-card);
-    box-shadow: var(--shadow);
   }
 
   .workspace-area-viewer,
   .viewer-shell {
-    grid-area: viewer;
-    height: auto;
+    width: 100%;
+    min-width: 0;
+    height: min(56vh, 480px);
+    max-height: min(56vh, 480px);
+    min-height: 320px;
   }
 
   .equipment-list {
-    grid-area: list;
+    width: 100%;
     height: min(42vh, 320px);
     max-height: min(42vh, 320px);
     overflow-y: auto;
@@ -2002,22 +2014,17 @@ body.focus-viewer .section--viewer .workspace--stage {
 
   .workspace-area-details,
   .viewer-info {
-    grid-area: details;
     max-width: none;
-    padding: 20px 20px 24px;
+    padding: 0 20px 24px;
     overflow-y: visible;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--bg-card);
-    box-shadow: var(--shadow);
   }
 
-  .viewer-shell,
   model-viewer.equipment-model-viewer,
   .model-fallback {
-    height: min(56vh, 480px);
-    max-height: min(56vh, 480px);
-    min-height: 360px;
+    width: 100%;
+    height: 100%;
+    min-height: 320px;
+    max-height: 100%;
   }
 }
 

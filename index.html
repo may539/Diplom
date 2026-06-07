@@ -119,23 +119,23 @@
 
           <article class="viewer-card workspace__panel">
             <div class="viewer-shell workspace__column workspace__column--viewer workspace-area-viewer" id="viewer-shell">
+              <model-viewer
+                id="equipment-model-viewer"
+                class="equipment-model-viewer"
+                camera-controls
+                auto-rotate
+                auto-rotate-delay="0"
+                rotation-per-second="30deg"
+                touch-action="pan-y"
+                interaction-prompt="none"
+                loading="eager"
+                reveal="auto"
+                camera-orbit="auto auto 165%"
+                min-camera-orbit="auto auto 70%"
+                max-camera-orbit="auto auto 320%"
+                field-of-view="35deg"
+              ></model-viewer>
               <div class="local-viewer" id="local-viewer" role="img" aria-label="Интерактивный 3D макет оборудования">
-                <model-viewer
-                  id="equipment-model-viewer"
-                  class="equipment-model-viewer"
-                  camera-controls
-                  auto-rotate
-                  auto-rotate-delay="0"
-                  rotation-per-second="30deg"
-                  touch-action="pan-y"
-                  interaction-prompt="none"
-                  loading="eager"
-                  reveal="auto"
-                  camera-orbit="auto auto 165%"
-                  min-camera-orbit="auto auto 70%"
-                  max-camera-orbit="auto auto 320%"
-                  field-of-view="35deg"
-                ></model-viewer>
                 <button
                   class="viewer-touch-gate"
                   id="viewer-touch-gate"

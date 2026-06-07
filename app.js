@@ -417,13 +417,15 @@ function renderModelViewerHotspots(hotspots = []) {
 
 function renderHotspots(hotspots = []) {
   activeHotspots = hotspots;
-  renderModelViewerHotspots(hotspots);
 
-  if (equipmentModelViewer) {
+  if (equipmentModelViewer?.getAttribute("src")) {
+    renderModelViewerHotspots(hotspots);
     hotspotLayer.innerHTML = "";
     renderAnnotation(hotspots, -1);
     return;
   }
+
+  renderModelViewerHotspots([]);
 
   hotspotLayer.innerHTML = hotspots
     .map(
@@ -468,6 +470,22 @@ function usesGlbModel(equipment) {
   return Boolean(equipment?.model && /\.glb(\?|$)/i.test(String(equipment.model)));
 }
 
+async function ensureModelViewerReady() {
+  if (!equipmentModelViewer) {
+    return false;
+  }
+
+  if (window.customElements?.whenDefined) {
+    try {
+      await window.customElements.whenDefined("model-viewer");
+    } catch {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function syncViewerDisplayMode(equipment) {
   const glbMode = usesGlbModel(equipment);
   viewerShell?.classList.toggle("is-glb-mode", glbMode);
@@ -502,6 +520,11 @@ function renderActiveEquipment(equipment) {
 
     const applySrc = async () => {
       if (usesGlbModel(equipment)) {
+        const ready = await ensureModelViewerReady();
+        if (!ready) {
+          return;
+        }
+
         if (typeof setModelViewerSrc === "function") {
           await setModelViewerSrc(equipmentModelViewer, equipment.model);
         } else {
