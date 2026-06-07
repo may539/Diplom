@@ -117,7 +117,8 @@
             <div class="equipment-list__scroll" id="equipment-list"></div>
           </aside>
 
-          <div class="viewer-shell workspace__column workspace__column--viewer workspace-area-viewer">
+          <article class="viewer-card workspace__panel">
+            <div class="viewer-shell workspace__column workspace__column--viewer workspace-area-viewer" id="viewer-shell">
               <div class="local-viewer" id="local-viewer" role="img" aria-label="Интерактивный 3D макет оборудования">
                 <model-viewer
                   id="equipment-model-viewer"
@@ -128,7 +129,7 @@
                   rotation-per-second="30deg"
                   touch-action="pan-y"
                   interaction-prompt="none"
-                  loading="lazy"
+                  loading="eager"
                   reveal="auto"
                   camera-orbit="auto auto 165%"
                   min-camera-orbit="auto auto 70%"
@@ -174,12 +175,12 @@
                   <button class="zoom-control" id="zoom-in" data-viewer-control type="button" aria-label="Приблизить модель">+</button>
                 </div>
               </div>
-          </div>
+            </div>
 
-          <aside
-            class="viewer-sidebar workspace__column workspace__column--sidebar workspace-area-sidebar"
-            aria-label="Паспорт аудитории и описание оборудования"
-          >
+            <aside
+              class="viewer-sidebar workspace__column workspace__column--sidebar workspace-area-sidebar"
+              aria-label="Паспорт аудитории и описание оборудования"
+            >
               <section class="room-passport workspace-area-passport" id="room-passport" aria-labelledby="room-passport-label">
                 <p class="room-passport__label" id="room-passport-label">ПАСПОРТ АУДИТОРИИ</p>
                 <h4 class="room-passport__title" id="room-passport-title"></h4>
@@ -204,7 +205,8 @@
                   </a>
                 </div>
               </div>
-          </aside>
+            </aside>
+          </article>
         </div>
       </section>
     </main>

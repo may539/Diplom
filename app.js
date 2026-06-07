@@ -11,7 +11,9 @@ const equipmentFeatures = document.querySelector("#equipment-features");
 const modelLink = document.querySelector("#model-link");
 const localViewer = document.querySelector("#local-viewer");
 const localScene = document.querySelector("#local-scene");
+const viewerShell = document.querySelector("#viewer-shell");
 const equipmentModelViewer = document.querySelector("#equipment-model-viewer");
+const desktopViewerMq = window.matchMedia("(min-width: 941px)");
 const equipmentShape = document.querySelector("#equipment-shape");
 const hotspotLayer = document.querySelector("#hotspot-layer");
 const annotationPanel = document.querySelector("#annotation-panel");
@@ -462,8 +464,24 @@ function renderRoomPassport(specialty) {
   roomPassportDescription.textContent = specialty.description || "";
 }
 
+function usesGlbModel(equipment) {
+  return Boolean(equipment?.model && /\.glb(\?|$)/i.test(String(equipment.model)));
+}
+
+function syncViewerDisplayMode(equipment) {
+  const glbMode = usesGlbModel(equipment);
+  viewerShell?.classList.toggle("is-glb-mode", glbMode);
+  localScene.hidden = glbMode;
+  if (glbMode) {
+    localViewer.setAttribute("aria-hidden", "true");
+  } else {
+    localViewer.removeAttribute("aria-hidden");
+  }
+}
+
 function renderActiveEquipment(equipment) {
   renderRoomPassport(findSpecialty(activeSpecialtyId));
+  syncViewerDisplayMode(equipment);
 
   localViewer.setAttribute("aria-label", `Интерактивная 3D модель: ${equipment.title}`);
   equipmentShape.dataset.variant = equipment.variant || "sensor";
@@ -483,22 +501,31 @@ function renderActiveEquipment(equipment) {
     }
 
     const applySrc = async () => {
-      if (typeof setModelViewerSrc === "function") {
-        await setModelViewerSrc(equipmentModelViewer, equipment.model);
-      } else {
-        if (typeof applyModelCrossOrigin === "function") {
-          applyModelCrossOrigin(equipmentModelViewer, equipment.model);
+      if (usesGlbModel(equipment)) {
+        if (typeof setModelViewerSrc === "function") {
+          await setModelViewerSrc(equipmentModelViewer, equipment.model);
+        } else {
+          if (typeof applyModelCrossOrigin === "function") {
+            applyModelCrossOrigin(equipmentModelViewer, equipment.model);
+          }
+          if (typeof configureModelViewer === "function") {
+            configureModelViewer(equipmentModelViewer);
+          }
+          equipmentModelViewer.setAttribute("src", equipment.model);
         }
-        if (typeof configureModelViewer === "function") {
-          configureModelViewer(equipmentModelViewer);
-        }
-        equipmentModelViewer.setAttribute("src", equipment.model);
+
+        equipmentModelViewer.setAttribute("alt", equipment.title);
+        equipmentModelViewer.removeAttribute("aria-hidden");
+        equipmentModelViewer.toggleAttribute("auto-rotate", isAutoRotate);
+        setModelCameraRadius(modelCameraRadius);
+        renderAnnotation(equipment.hotspots || [], -1);
+        return;
       }
 
-      equipmentModelViewer.setAttribute("alt", equipment.title);
-      equipmentModelViewer.toggleAttribute("auto-rotate", isAutoRotate);
-      setModelCameraRadius(modelCameraRadius);
-      renderAnnotation(equipment.hotspots || [], -1);
+      equipmentModelViewer.removeAttribute("src");
+      equipmentModelViewer.setAttribute("aria-hidden", "true");
+      renderHotspots(equipment.hotspots || []);
+      renderAnnotation(equipment.hotspots || [], 0);
     };
 
     if (!equipmentModelViewer._textureHintBound) {
@@ -816,7 +843,8 @@ function shouldUseFocusViewerLayout() {
 }
 
 function syncFocusViewerLayout() {
-  document.body.classList.toggle("focus-viewer", shouldUseFocusViewerLayout());
+  const useFocus = shouldUseFocusViewerLayout() && desktopViewerMq.matches;
+  document.body.classList.toggle("focus-viewer", useFocus);
 }
 
 function applyInitialViewOptions() {
@@ -1099,6 +1127,7 @@ async function init() {
 
 viewerTouchGate?.addEventListener("click", activateMobileModelViewer);
 mobileViewerMq.addEventListener("change", () => syncMobileViewerInteraction());
+desktopViewerMq.addEventListener("change", () => syncFocusViewerLayout());
 
 window.addEventListener("pageshow", async (event) => {
   if (isFileMode) {

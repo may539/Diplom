@@ -292,6 +292,7 @@ a {
 
 .hero__panel,
 .equipment-list,
+.viewer-card,
 .viewer-sidebar {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -582,6 +583,20 @@ a {
   line-height: 1.5;
 }
 
+.viewer-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace__panel {
+  min-width: 0;
+  min-height: 0;
+}
+
 .workspace-area-viewer {
   height: 100%;
   min-height: 0;
@@ -627,8 +642,8 @@ a {
   height: 100%;
   min-height: 0;
   max-height: 100%;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border: none;
+  border-radius: 0;
   background:
     linear-gradient(rgba(8, 17, 31, 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgba(8, 17, 31, 0.08) 1px, transparent 1px),
@@ -642,13 +657,27 @@ a {
 model-viewer.equipment-model-viewer {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
   display: block;
   width: 100%;
   height: 100%;
   min-height: 0;
   max-height: 100%;
   --poster-color: transparent;
+}
+
+.viewer-shell.is-glb-mode .local-viewer__scene {
+  display: none;
+}
+
+.viewer-shell.is-glb-mode .local-viewer {
+  pointer-events: none;
+}
+
+.viewer-shell.is-glb-mode .viewer-zoom-controls,
+.viewer-shell.is-glb-mode .local-viewer__hint,
+.viewer-shell.is-glb-mode .viewer-touch-gate {
+  pointer-events: auto;
 }
 
 .viewer-touch-gate {
@@ -1863,7 +1892,7 @@ body.focus-viewer .section--viewer .workspace--stage {
 @media (min-width: 941px) {
   .section--viewer .workspace--stage {
     display: grid;
-    grid-template-columns: 300px minmax(0, 1fr) 380px;
+    grid-template-columns: 300px minmax(0, 1fr);
     overflow: hidden;
   }
 
@@ -1876,6 +1905,11 @@ body.focus-viewer .section--viewer .workspace--stage {
     width: 300px;
     box-sizing: border-box;
     overflow-y: auto;
+  }
+
+  .section--viewer .viewer-card {
+    height: 100%;
+    min-height: 0;
   }
 
   .section--viewer .workspace__column--sidebar {
@@ -1891,21 +1925,13 @@ body.focus-viewer .section--viewer .workspace--stage {
 
   body.focus-viewer .section--viewer .workspace__column--list,
   body.focus-viewer .section--viewer .workspace__column--sidebar,
-  body.focus-viewer .section--viewer .workspace__column--viewer {
+  body.focus-viewer .section--viewer .workspace__column--viewer,
+  body.focus-viewer .section--viewer .viewer-card {
     height: 100%;
     max-height: 100%;
   }
 
-  body.focus-viewer .section--viewer .workspace__column--viewer {
-    height: 100%;
-    max-height: 100%;
-  }
-
-  body.focus-viewer .section--viewer .workspace__column--viewer model-viewer.equipment-model-viewer {
-    height: 100%;
-    max-height: 100%;
-  }
-
+  body.focus-viewer .section--viewer .workspace__column--viewer model-viewer.equipment-model-viewer,
   body.focus-viewer .section--viewer .viewer-shell {
     height: 100%;
     max-height: 100%;
@@ -1918,7 +1944,7 @@ body.focus-viewer .section--viewer .workspace--stage {
   }
 
   .section--viewer .workspace__column--list,
-  .section--viewer .workspace__column--sidebar {
+  .section--viewer .viewer-card {
     max-height: min(72vh, 640px);
   }
 }
@@ -1945,6 +1971,7 @@ body.focus-viewer .section--viewer .workspace--stage {
     overflow: visible;
   }
 
+  .viewer-card,
   .viewer-sidebar {
     display: contents;
     max-width: none;
