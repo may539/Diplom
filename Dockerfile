@@ -42,8 +42,8 @@ WORKDIR /app
 COPY --from=deps --chown=app:app /app/node_modules ./node_modules
 COPY --chown=app:app . .
 
-RUN mkdir -p /app/data /app/logs /app/public/models /app/public/environments \
-    && chown -R app:app /app/data /app/logs /app/public/models /app/public/environments
+RUN mkdir -p /app/data /app/logs /app/public/models /app/public/environments /app/public/images/classrooms /app/public/passports/classrooms \
+    && chown -R app:app /app/data /app/logs /app/public/models /app/public/environments /app/public/images /app/public/passports
 
 USER app
 

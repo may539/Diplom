@@ -1,4 +1,6 @@
 const equipmentForm = document.querySelector("#equipment-form");
+const classroomForm = document.querySelector("#classroom-form");
+const classroomStatus = document.querySelector("#classroom-status");
 const specialtySelect = document.querySelector("#specialty-select");
 const statusText = document.querySelector("#form-status");
 const equipmentIdInput = document.querySelector("#equipment-id");
@@ -43,8 +45,17 @@ function setStatus(text, isError = false) {
   statusText.classList.toggle("is-error", isError);
 }
 
+function setClassroomStatus(text, isError = false) {
+  if (!classroomStatus) return;
+  classroomStatus.textContent = text;
+  classroomStatus.classList.toggle("is-error", isError);
+}
+
 function setFormDisabled(isDisabled) {
   equipmentForm.querySelectorAll("input, textarea, select, button").forEach((control) => {
+    control.disabled = isDisabled;
+  });
+  classroomForm?.querySelectorAll("input, textarea, select, button").forEach((control) => {
     control.disabled = isDisabled;
   });
 }
@@ -306,6 +317,46 @@ async function deleteEquipment(id) {
   await loadCatalog();
 }
 
+classroomForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const token = getAdminToken();
+  if (!token) {
+    showToast("Ошибка авторизации", "error");
+    return;
+  }
+
+  const formData = new FormData(classroomForm);
+  setClassroomStatus("Сохраняем аудиторию…");
+
+  try {
+    const response = await fetch("/api/admin/specialties", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (response.status === 401) {
+      setAdminToken("");
+      showToast("Ошибка авторизации", "error");
+      setClassroomStatus(data.error || "Сессия истекла. Войдите снова.", true);
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || "Ошибка сохранения аудитории.");
+    }
+
+    showToast("Аудитория сохранена", "success");
+    setClassroomStatus(`Аудитория «${data.title || data.id}» сохранена.`);
+    sessionStorage.setItem("catalogNeedsReload", "1");
+    classroomForm.reset();
+    await loadSpecialties();
+  } catch (error) {
+    setClassroomStatus(error.message, true);
+  }
+});
+
 equipmentForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const token = getAdminToken();
@@ -451,6 +502,7 @@ async function initAdmin() {
       catalogList.innerHTML = '<p class="admin-catalog__error">Войдите через «Загрузить модель» на главной странице.</p>';
     }
     setStatus("Откройте админ-панель через кнопку «Загрузить модель» на главной странице и введите пароль.", true);
+    setClassroomStatus("Авторизуйтесь через главную страницу, чтобы добавлять аудитории.", true);
     return;
   }
 

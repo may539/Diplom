@@ -10,6 +10,8 @@ async function fetchSpecialtyNodes(all) {
        code,
        title AS name,
        description,
+       classroom_photo AS classroomPhoto,
+       classroom_passport AS classroomPassport,
        parent_id AS parentId,
        sort_order AS sortOrder
      FROM specialties

@@ -12,6 +12,10 @@ logs/*
 !logs/.gitkeep
 public/models/*.glb
 public/models/*.gltf
+public/images/classrooms/*
+!public/images/classrooms/.gitkeep
+public/passports/classrooms/*
+!public/passports/classrooms/.gitkeep
 Dockerfile
 docker-compose*.yml
 .dockerignore

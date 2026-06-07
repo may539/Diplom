@@ -5,10 +5,14 @@ const equipmentCount = document.querySelector("#equipment-count");
 const equipmentType = document.querySelector("#equipment-type");
 const equipmentTitle = document.querySelector("#equipment-title");
 const equipmentDescription = document.querySelector("#equipment-description");
+const roomPassportLabel = document.querySelector("#room-passport-label");
 const roomPassportTitle = document.querySelector("#room-passport-title");
 const roomPassportDescription = document.querySelector("#room-passport-description");
+const roomPassportPhoto = document.querySelector("#room-passport-photo");
+const roomPassportDocument = document.querySelector("#room-passport-document");
 const equipmentFeatures = document.querySelector("#equipment-features");
 const modelLink = document.querySelector("#model-link");
+const printEquipmentQrButton = document.querySelector("#print-equipment-qr");
 const localViewer = document.querySelector("#local-viewer");
 const localScene = document.querySelector("#local-scene");
 const equipmentModelViewerHost = document.querySelector("#equipment-model-viewer-host");
@@ -438,13 +442,46 @@ function renderRoomPassport(specialty) {
   }
 
   if (!specialty) {
+    if (roomPassportLabel) {
+      roomPassportLabel.textContent = "ПАСПОРТ АУДИТОРИИ";
+    }
     roomPassportTitle.textContent = "";
     roomPassportDescription.textContent = "";
+    if (roomPassportPhoto) {
+      roomPassportPhoto.hidden = true;
+      roomPassportPhoto.removeAttribute("src");
+    }
+    if (roomPassportDocument) {
+      roomPassportDocument.hidden = true;
+      roomPassportDocument.href = "#";
+    }
     return;
   }
 
-  roomPassportTitle.textContent = specialty.name || specialty.title || specialty.code || "";
+  const title = specialty.name || specialty.title || specialty.code || "";
+  if (roomPassportLabel) {
+    roomPassportLabel.textContent = `ПАСПОРТ АУДИТОРИИ: ${title}`;
+  }
+  roomPassportTitle.textContent = title;
   roomPassportDescription.textContent = specialty.description || "";
+  if (roomPassportPhoto) {
+    if (specialty.classroomPhoto) {
+      roomPassportPhoto.src = specialty.classroomPhoto;
+      roomPassportPhoto.hidden = false;
+    } else {
+      roomPassportPhoto.hidden = true;
+      roomPassportPhoto.removeAttribute("src");
+    }
+  }
+  if (roomPassportDocument) {
+    if (specialty.classroomPassport) {
+      roomPassportDocument.href = specialty.classroomPassport;
+      roomPassportDocument.hidden = false;
+    } else {
+      roomPassportDocument.hidden = true;
+      roomPassportDocument.href = "#";
+    }
+  }
 }
 
 function renderActiveEquipment(equipment) {
@@ -798,6 +835,49 @@ async function submitAdminLogin(event) {
   }
 }
 
+async function printActiveEquipmentQr() {
+  if (!activeEquipmentId) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/qr/${encodeURIComponent(activeEquipmentId)}`, { cache: "no-store" });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.imageDataUrl) {
+      throw new Error(payload.error || "Не удалось сформировать QR-код.");
+    }
+
+    const printWindow = window.open("", "_blank", "width=420,height=620");
+    if (!printWindow) {
+      throw new Error("Браузер заблокировал окно печати. Разрешите всплывающие окна.");
+    }
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html lang="ru">
+        <head>
+          <meta charset="utf-8" />
+          <title>QR: ${escapeHtml(payload.title || activeEquipmentId)}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 24px; text-align: center; color: #111827; }
+            img { width: 280px; height: 280px; }
+            p { overflow-wrap: anywhere; }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeHtml(payload.title || activeEquipmentId)}</h1>
+          <img src="${payload.imageDataUrl}" alt="QR-код" />
+          <p>${escapeHtml(payload.url || "")}</p>
+          <script>window.onload = () => { window.print(); };</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  } catch (error) {
+    annotationPanel.innerHTML = `<span>${escapeHtml(error.message)}</span>`;
+  }
+}
+
 if (adminLoginModalForm) {
   adminLoginModalForm.addEventListener("submit", submitAdminLogin);
 }
@@ -875,6 +955,8 @@ wireframeToggle.addEventListener("click", () => {
   isAutoRotate = !isAutoRotate;
   syncAutoRotate();
 });
+
+printEquipmentQrButton?.addEventListener("click", printActiveEquipmentQr);
 
 if (menuToggle && menuDropdown && menuRoot) {
   menuToggle.addEventListener("click", (event) => {

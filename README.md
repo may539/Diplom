@@ -37,6 +37,8 @@ HOST_PORT=80
 
 - `diplom-data` → `/app/data` — SQLite-база (`equipment.sqlite`) и исходный seed-файл;
 - `diplom-models` → `/app/public/models` — загруженные `.glb` модели;
+- `diplom-classroom-images` → `/app/public/images/classrooms` — фотографии аудиторий;
+- `diplom-classroom-passports` → `/app/public/passports/classrooms` — файлы паспортов аудиторий;
 - `diplom-logs` → `/app/logs` — журнал сканирования QR.
 
 Эти данные не удаляются при пересоздании контейнера командой `docker compose up -d --build`.

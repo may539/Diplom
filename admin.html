@@ -15,11 +15,19 @@
     <header class="hero admin-hero">
       <nav class="topbar" aria-label="Навигация админ-панели">
         <a class="brand" href="/" aria-label="Учебное оборудование Алтайского Промышленно-Экономического колледжа">
+          <img
+            class="brand__logo"
+            src="apek-logo.png"
+            width="48"
+            height="48"
+            alt="Эмблема Алтайского Промышленно-Экономического колледжа"
+          />
           <span class="brand__mark">3D</span>
           <span class="brand__title">Учебное оборудование Алтайского Промышленно-Экономического колледжа</span>
         </a>
         <div class="topbar__links">
           <a href="/">Каталог</a>
+          <a href="#classroom-form-card">Добавить аудиторию</a>
           <a href="#admin-form">Внести в паспорт</a>
         </div>
       </nav>
@@ -35,6 +43,50 @@
     </header>
 
     <main class="section">
+      <article class="admin-card" id="classroom-form-card" aria-labelledby="classroom-form-title">
+        <h2 id="classroom-form-title">Регистрация новой учебной аудитории</h2>
+        <p class="admin-card__hint">
+          Добавьте или обновите паспорт кабинета: описание, фотографию аудитории и файл паспорта.
+        </p>
+        <form id="classroom-form" class="admin-form" enctype="multipart/form-data" method="post">
+          <label>
+            Номер / ID аудитории *
+            <input type="text" name="id" required placeholder="Каб. 212" />
+          </label>
+
+          <label>
+            Полное название лаборатории *
+            <input type="text" name="name" required placeholder="Лаборатория криминалистики и специальной техники" />
+          </label>
+
+          <label>
+            Текстовое описание / назначение *
+            <textarea name="description" rows="5" required></textarea>
+          </label>
+
+          <label class="admin-form__file-label">
+            Фотография аудитории (.jpg/.png)
+            <input type="file" name="classroom_photo" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
+          </label>
+
+          <label class="admin-form__file-label">
+            Паспорт аудитории (.pdf/.docx)
+            <input
+              type="file"
+              name="classroom_passport"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            />
+          </label>
+
+          <div class="admin-form__actions">
+            <button class="button button--primary" type="submit" id="classroom-submit">
+              Сохранить аудиторию
+            </button>
+          </div>
+          <p id="classroom-status" class="admin-status" role="status" aria-live="polite"></p>
+        </form>
+      </article>
+
       <article class="admin-card" id="admin-form" aria-labelledby="admin-form-title">
         <h2 id="admin-form-title">Регистрация оборудования в паспорте кабинета</h2>
         <p class="admin-card__hint">

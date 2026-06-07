@@ -48,6 +48,11 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+select option {
+  background: #ffffff;
+  color: #111827;
+}
+
 .hero,
 .section,
 .footer {
@@ -505,7 +510,7 @@ a {
   display: grid;
   grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .equipment-list {
@@ -513,8 +518,8 @@ a {
   top: 1.25rem;
   display: flex;
   flex-direction: column;
-  height: min(70vh, 600px);
-  max-height: min(70vh, 600px);
+  height: calc(100vh - 70px);
+  max-height: calc(100vh - 70px);
   padding: 16px;
   overflow: hidden;
 }
@@ -591,8 +596,9 @@ a {
 .viewer-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 400px);
-  align-self: start;
+  align-self: stretch;
   width: 100%;
+  height: calc(100vh - 70px);
   max-width: 1180px;
   margin-inline: auto;
   overflow: hidden;
@@ -601,9 +607,9 @@ a {
 .viewer-shell {
   position: relative;
   overflow: hidden;
-  height: min(70vh, 600px);
-  max-height: min(70vh, 600px);
-  min-height: 480px;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
   background:
     linear-gradient(rgba(8, 17, 31, 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgba(8, 17, 31, 0.08) 1px, transparent 1px),
@@ -1078,7 +1084,8 @@ model-viewer.equipment-model-viewer[hidden] {
   min-width: 0;
   max-width: 400px;
   width: 100%;
-  max-height: min(70vh, 600px);
+  height: 100%;
+  max-height: none;
   flex-direction: column;
   justify-content: flex-start;
   padding: 28px 26px;
@@ -1125,6 +1132,25 @@ model-viewer.equipment-model-viewer[hidden] {
   font-size: 1.05rem;
   font-weight: 600;
   line-height: 1.6;
+}
+
+.room-passport__photo {
+  display: block;
+  width: 100%;
+  margin: 12px 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.room-passport__photo[hidden],
+.room-passport__document[hidden] {
+  display: none;
+}
+
+.room-passport__document {
+  width: 100%;
+  margin: 10px 0 0;
 }
 
 .room-passport__divider {
@@ -1576,6 +1602,11 @@ main.section .admin-card + .admin-card {
   font: inherit;
 }
 
+.admin-form select option {
+  background: #ffffff;
+  color: #111827;
+}
+
 .admin-form input:focus,
 .admin-form textarea:focus,
 .admin-form select:focus {
@@ -1783,18 +1814,20 @@ body.focus-viewer .section--viewer .section__header {
 
   .equipment-list {
     position: static;
-    height: min(42vh, 320px);
-    max-height: min(42vh, 320px);
+    height: calc(100vh - 70px);
+    max-height: calc(100vh - 70px);
   }
 
   .viewer-card {
+    height: auto;
     max-width: none;
   }
 
   .viewer-info {
     max-width: none;
-    max-height: none;
-    overflow-y: visible;
+    height: calc(100vh - 70px);
+    max-height: calc(100vh - 70px);
+    overflow-y: auto;
   }
 
   .viewer-shell,
@@ -1814,8 +1847,8 @@ body.focus-viewer .section--viewer .section__header {
   }
 
   .equipment-list {
-    height: min(38vh, 280px);
-    max-height: min(38vh, 280px);
+    height: calc(100vh - 70px);
+    max-height: calc(100vh - 70px);
   }
 
   .viewer-shell,

@@ -12,6 +12,14 @@ async function migrateSchema({ run, all }) {
     await run("ALTER TABLE specialties ADD COLUMN parent_id TEXT REFERENCES specialties(id)");
   }
 
+  if (!(await columnExists(all, "specialties", "classroom_photo"))) {
+    await run("ALTER TABLE specialties ADD COLUMN classroom_photo TEXT");
+  }
+
+  if (!(await columnExists(all, "specialties", "classroom_passport"))) {
+    await run("ALTER TABLE specialties ADD COLUMN classroom_passport TEXT");
+  }
+
   if (!(await columnExists(all, "equipment", "sort_order"))) {
     await run("ALTER TABLE equipment ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
   }

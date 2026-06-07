@@ -18,6 +18,8 @@ services:
     volumes:
       - diplom-data:/app/data
       - diplom-models:/app/public/models
+      - diplom-classroom-images:/app/public/images/classrooms
+      - diplom-classroom-passports:/app/public/passports/classrooms
       - diplom-logs:/app/logs
     healthcheck:
       test:
@@ -33,4 +35,6 @@ services:
 volumes:
   diplom-data:
   diplom-models:
+  diplom-classroom-images:
+  diplom-classroom-passports:
   diplom-logs:

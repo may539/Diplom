@@ -21,6 +21,8 @@ const port = Number(process.env.PORT || 8080);
 const host = process.env.HOST || "0.0.0.0";
 const rootDir = __dirname;
 const modelsPublicDir = path.join(rootDir, "public", "models");
+const classroomImagesPublicDir = path.join(rootDir, "public", "images", "classrooms");
+const classroomPassportsPublicDir = path.join(rootDir, "public", "passports", "classrooms");
 /** Bcrypt hash for default password "admin123". Prefer ADMIN_PASSWORD_HASH in production. */
 const DEFAULT_ADMIN_PASSWORD_HASH = "$2b$10$/x0xBA8DU1ssl3WJePlLwuxS0.MEXRx/oLoNB3mT9cGYaZ5q.1JcO";
 const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH || DEFAULT_ADMIN_PASSWORD_HASH;
@@ -32,6 +34,7 @@ const dbPath = path.join(rootDir, "data", "equipment.sqlite");
 const scanLogPath = path.join(rootDir, "logs", "scan.log");
 const db = new sqlite3.Database(dbPath);
 const equipmentIdPattern = /^[a-zA-Z0-9-]+$/;
+const seedCatalogVersion = "classroom-catalog-2026-06-07";
 const legacySeedEquipmentIds = [
   "security-sensor",
   "access-terminal",
@@ -196,6 +199,39 @@ const upload = multer({
     const name = String(file.originalname || "").toLowerCase();
     if (!name.endsWith(".glb")) {
       cb(new Error("Только файлы .glb."));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+const classroomUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, file, cb) => {
+      if (file.fieldname === "classroom_photo") {
+        cb(null, classroomImagesPublicDir);
+        return;
+      }
+      cb(null, classroomPassportsPublicDir);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase();
+      const bodyId = String(req.body?.id || req.body?.code || "classroom").trim();
+      const baseName = path.basename(file.originalname || "file", path.extname(file.originalname || ""));
+      const base = slugify(`${bodyId}-${baseName}`) || `classroom-${Date.now()}`;
+      cb(null, `${base}-${Date.now()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const allowedByField = {
+      classroom_photo: new Set([".jpg", ".jpeg", ".png", ".webp"]),
+      classroom_passport: new Set([".pdf", ".doc", ".docx"]),
+    };
+    const allowed = allowedByField[file.fieldname];
+    if (!allowed || !allowed.has(ext)) {
+      cb(new Error("Недопустимый формат файла аудитории."));
       return;
     }
     cb(null, true);
@@ -495,6 +531,8 @@ function validateEquipmentIdParam(req, res, next) {
 
 async function initDb() {
   await fsp.mkdir(modelsPublicDir, { recursive: true });
+  await fsp.mkdir(classroomImagesPublicDir, { recursive: true });
+  await fsp.mkdir(classroomPassportsPublicDir, { recursive: true });
   await run("PRAGMA foreign_keys = ON");
   await run(`
     CREATE TABLE IF NOT EXISTS specialties (
@@ -543,6 +581,13 @@ async function initDb() {
     )
   `);
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `);
+
   const helpCountRow = await get("SELECT COUNT(*) AS count FROM help_articles");
   if ((helpCountRow?.count || 0) === 0) {
     const seedArticles = [
@@ -580,6 +625,8 @@ async function initDb() {
   }
 
   const seedSpecialties = readJsonSeed();
+  const seedVersionRow = await get("SELECT value FROM app_meta WHERE key = 'seed_catalog_version'");
+  const shouldApplySeedUpdate = seedVersionRow?.value !== seedCatalogVersion;
   const seedEquipmentIds = seedSpecialties.flatMap((specialty) =>
     (specialty.equipment || []).map((equipment) => equipment.id),
   );
@@ -598,7 +645,7 @@ async function initDb() {
 
   await run("BEGIN TRANSACTION");
   try {
-    if (obsoleteLegacyIds.length) {
+    if (shouldApplySeedUpdate && obsoleteLegacyIds.length) {
       await run(
         `DELETE FROM equipment WHERE id IN (${placeholders(obsoleteLegacyIds)})`,
         obsoleteLegacyIds,
@@ -606,31 +653,24 @@ async function initDb() {
     }
 
     for (const [specialtyIndex, specialty] of seedSpecialties.entries()) {
-      await run(
-        `INSERT INTO specialties (id, code, title, description, sort_order, parent_id)
-         VALUES (?, ?, ?, ?, ?, NULL)
-         ON CONFLICT(id) DO UPDATE SET
+      const specialtyConflictClause = shouldApplySeedUpdate
+        ? `ON CONFLICT(id) DO UPDATE SET
            code = excluded.code,
            title = excluded.title,
            description = excluded.description,
            sort_order = excluded.sort_order,
-           parent_id = NULL`,
+           parent_id = NULL`
+        : "ON CONFLICT(id) DO NOTHING";
+      await run(
+        `INSERT INTO specialties (id, code, title, description, sort_order, parent_id, classroom_photo, classroom_passport)
+         VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL)
+         ${specialtyConflictClause}`,
         [specialty.id, specialty.code, specialty.title, specialty.description, specialtyIndex],
       );
 
       for (const [equipmentIndex, equipment] of (specialty.equipment || []).entries()) {
-        const resolvedModel = await resolveSeedModel(
-          equipment,
-          existingEquipmentById.get(equipment.id),
-          existingLocalModelRows,
-          localModels,
-        );
-        await run(
-          `INSERT INTO equipment
-            (id, specialty_id, title, type, short, description, features_json, model,
-             environment, variant, hotspots_json, sort_order, model_file_size, model_file_hash)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(id) DO UPDATE SET
+        const equipmentConflictClause = shouldApplySeedUpdate
+          ? `ON CONFLICT(id) DO UPDATE SET
              specialty_id = excluded.specialty_id,
              title = excluded.title,
              type = excluded.type,
@@ -643,7 +683,20 @@ async function initDb() {
              hotspots_json = excluded.hotspots_json,
              sort_order = excluded.sort_order,
              model_file_size = excluded.model_file_size,
-             model_file_hash = excluded.model_file_hash`,
+             model_file_hash = excluded.model_file_hash`
+          : "ON CONFLICT(id) DO NOTHING";
+        const resolvedModel = await resolveSeedModel(
+          equipment,
+          existingEquipmentById.get(equipment.id),
+          existingLocalModelRows,
+          localModels,
+        );
+        await run(
+          `INSERT INTO equipment
+            (id, specialty_id, title, type, short, description, features_json, model,
+             environment, variant, hotspots_json, sort_order, model_file_size, model_file_hash)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ${equipmentConflictClause}`,
           [
             equipment.id,
             specialty.id,
@@ -664,6 +717,13 @@ async function initDb() {
       }
     }
 
+    await run(
+      `INSERT INTO app_meta (key, value)
+       VALUES ('seed_catalog_version', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      [seedCatalogVersion],
+    );
+
     await run("COMMIT");
   } catch (error) {
     await run("ROLLBACK").catch(() => {});
@@ -673,7 +733,9 @@ async function initDb() {
 
 async function readSpecialties() {
   const specialties = await all(
-    "SELECT id, code, title, description FROM specialties ORDER BY sort_order ASC, code ASC",
+    `SELECT id, code, title, description, classroom_photo, classroom_passport
+     FROM specialties
+     ORDER BY sort_order ASC, code ASC`,
   );
   const equipmentRows = await all(
     `SELECT id, specialty_id, title, type, short, description, features_json, model, environment, variant, hotspots_json,
@@ -695,6 +757,8 @@ async function readSpecialties() {
   return specialties.map((specialty) => ({
     ...specialty,
     name: specialty.title,
+    classroomPhoto: specialty.classroom_photo || "",
+    classroomPassport: specialty.classroom_passport || "",
     equipment: bySpecialty.get(specialty.id) || [],
   }));
 }
@@ -995,11 +1059,137 @@ app.get("/api/admin/specialties", async (req, res, next) => {
   }
 
   try {
-    const rows = await all("SELECT id, code, title FROM specialties ORDER BY sort_order ASC, code ASC");
+    const rows = await all(
+      `SELECT id, code, title, description, classroom_photo AS classroomPhoto, classroom_passport AS classroomPassport
+       FROM specialties
+       ORDER BY sort_order ASC, code ASC`,
+    );
     res.json(rows);
   } catch (error) {
     next(error);
   }
+});
+
+function classroomUploadMiddleware(req, res, next) {
+  const handler = classroomUpload.fields([
+    { name: "classroom_photo", maxCount: 1 },
+    { name: "classroom_passport", maxCount: 1 },
+  ]);
+  handler(req, res, (err) => {
+    if (err) {
+      next(err);
+      return;
+    }
+    next();
+  });
+}
+
+function classroomFileUrl(req, fieldName, publicPath) {
+  const file = req.files?.[fieldName]?.[0];
+  return file ? `${publicPath}/${file.filename}` : null;
+}
+
+async function unlinkUploadedClassroomFiles(req) {
+  const files = [
+    ...(req.files?.classroom_photo || []),
+    ...(req.files?.classroom_passport || []),
+  ];
+  await Promise.all(files.map((file) => fsp.unlink(file.path).catch(() => {})));
+}
+
+function extractRoomNumber(value) {
+  const match = String(value || "").match(/\d{2,4}/);
+  return match ? match[0] : "";
+}
+
+async function resolveClassroomSpecialtyId(rawId) {
+  const requestedId = String(rawId || "").trim();
+  const exact = await get("SELECT id FROM specialties WHERE id = ?", [requestedId]);
+  if (exact) {
+    return requestedId;
+  }
+
+  const roomNumber = extractRoomNumber(requestedId);
+  if (roomNumber) {
+    const rows = await all("SELECT id, code, title FROM specialties");
+    const match = rows.find((row) =>
+      [row.id, row.code, row.title].some((value) => String(value || "").includes(roomNumber)),
+    );
+    if (match) {
+      return match.id;
+    }
+  }
+
+  return requestedId;
+}
+
+function parseClassroomBody(req) {
+  const id = String(req.body.id || req.body.code || "").trim();
+  const name = String(req.body.name || req.body.title || "").trim();
+  const description = String(req.body.description || "").trim();
+  return { id, name, description };
+}
+
+app.post("/api/admin/specialties", (req, res, next) => {
+  if (!assertAdmin(req, res)) {
+    return;
+  }
+
+  classroomUploadMiddleware(req, res, async (uploadError) => {
+    if (uploadError) {
+      next(uploadError);
+      return;
+    }
+
+    try {
+      const body = parseClassroomBody(req);
+      if (!body.id || !body.name || !body.description) {
+        await unlinkUploadedClassroomFiles(req);
+        res.status(400).json({ error: "Заполните ID аудитории, название и описание." });
+        return;
+      }
+
+      const resolvedId = await resolveClassroomSpecialtyId(body.id);
+      const photoUrl = classroomFileUrl(req, "classroom_photo", "/images/classrooms");
+      const passportUrl = classroomFileUrl(req, "classroom_passport", "/passports/classrooms");
+      const countRow = await get("SELECT COUNT(*) AS count FROM specialties");
+      const existing = await get("SELECT id FROM specialties WHERE id = ?", [resolvedId]);
+      const sortOrder = existing ? null : countRow?.count || 0;
+
+      await run(
+        `INSERT INTO specialties
+          (id, code, title, description, sort_order, parent_id, classroom_photo, classroom_passport)
+         VALUES (?, ?, ?, ?, ?, NULL, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           code = excluded.code,
+           title = excluded.title,
+           description = excluded.description,
+           classroom_photo = COALESCE(excluded.classroom_photo, specialties.classroom_photo),
+           classroom_passport = COALESCE(excluded.classroom_passport, specialties.classroom_passport)`,
+        [
+          resolvedId,
+          body.id,
+          body.name,
+          body.description,
+          sortOrder ?? 0,
+          photoUrl,
+          passportUrl,
+        ],
+      );
+
+      const saved = await get(
+        `SELECT id, code, title, description, classroom_photo AS classroomPhoto, classroom_passport AS classroomPassport
+         FROM specialties
+         WHERE id = ?`,
+        [resolvedId],
+      );
+
+      res.status(existing ? 200 : 201).json(saved);
+    } catch (error) {
+      await unlinkUploadedClassroomFiles(req);
+      next(error);
+    }
+  });
 });
 
 function parseEquipmentFormBody(req) {
@@ -1401,6 +1591,8 @@ app.get("/view.html", async (req, res, next) => {
 });
 
 app.use("/vendor", express.static(path.join(rootDir, "vendor"), { index: false }));
+app.use("/images", express.static(path.join(rootDir, "public", "images"), { index: false }));
+app.use("/passports", express.static(path.join(rootDir, "public", "passports"), { index: false }));
 app.use(
   "/environments",
   express.static(path.join(rootDir, "public", "environments"), {
@@ -1479,7 +1671,7 @@ app.use((error, _req, res, _next) => {
     res.status(400).json({ error: error.message || "Ошибка загрузки файла." });
     return;
   }
-  if (error && error.message === "Только файлы .glb.") {
+  if (error && (error.message === "Только файлы .glb." || error.message === "Недопустимый формат файла аудитории.")) {
     res.status(400).json({ error: error.message });
     return;
   }
