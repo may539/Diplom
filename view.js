@@ -1,5 +1,11 @@
 const params = new URLSearchParams(window.location.search);
 const equipmentId = (params.get("id") || "").trim();
+const isScanMode = params.get("scan") === "1";
+
+if (isScanMode) {
+  document.body.classList.add("view-page--scan");
+}
+
 const viewType = document.querySelector("#view-type");
 const viewTitle = document.querySelector("#view-title");
 const viewModel = document.querySelector("#view-model");
@@ -12,9 +18,28 @@ function showError(message) {
   viewTitle.textContent = "Модель недоступна";
 }
 
+async function ensureModelViewerReady() {
+  if (!viewModel || !window.customElements?.whenDefined) {
+    return Boolean(viewModel);
+  }
+
+  try {
+    await window.customElements.whenDefined("model-viewer");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function init() {
   if (!equipmentId) {
     showError("В адресе не указан идентификатор модели (?id=…).");
+    return;
+  }
+
+  const ready = await ensureModelViewerReady();
+  if (!ready) {
+    showError("Не удалось инициализировать 3D-просмотр.");
     return;
   }
 

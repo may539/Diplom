@@ -79,3 +79,22 @@ body {
 .view-page.is-error .view-page__stage {
   display: none;
 }
+
+.view-page--scan {
+  grid-template-rows: 1fr;
+  overflow: hidden;
+}
+
+.view-page--scan .view-page__bar,
+.view-page--scan .view-page__hint {
+  display: none;
+}
+
+.view-page--scan .view-page__stage {
+  min-height: 100dvh;
+}
+
+.view-page--scan #view-model {
+  min-height: 100dvh;
+  height: 100dvh;
+}

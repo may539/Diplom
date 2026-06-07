@@ -431,6 +431,32 @@ function isLoopbackHost(hostname) {
   return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname);
 }
 
+function isUnreachableQrHost(hostname) {
+  return isLoopbackHost(hostname) || isDockerBridgeIp(hostname);
+}
+
+function describeQrUrlIssue(url) {
+  try {
+    const parsed = new URL(url);
+    if (isLoopbackHost(parsed.hostname)) {
+      return (
+        "QR ведёт на localhost — телефон не откроет ссылку. " +
+        "Откройте админку по IP ПК в Wi‑Fi (например http://192.168.0.42:8080) " +
+        "или задайте PUBLIC_BASE_URL в .env."
+      );
+    }
+    if (isDockerBridgeIp(parsed.hostname)) {
+      return (
+        "QR ведёт на внутренний адрес Docker — телефон не откроет ссылку. " +
+        "Задайте PUBLIC_BASE_URL=http://IP_ПК:8080 в .env и перезапустите контейнер."
+      );
+    }
+    return null;
+  } catch (error) {
+    return "Некорректный адрес для QR-кода.";
+  }
+}
+
 function resolvePublicBaseUrl(req) {
   if (process.env.PUBLIC_BASE_URL) {
     return process.env.PUBLIC_BASE_URL.replace(/\/$/, "");
@@ -453,16 +479,21 @@ function resolvePublicBaseUrl(req) {
 
   if (requestHost) {
     const baseUrl = new URL(`${protocol}://${requestHost}`);
-    if (isLoopbackHost(baseUrl.hostname)) {
+    if (isUnreachableQrHost(baseUrl.hostname)) {
       const lanIp = getLanAddress();
-      if (!isLoopbackHost(lanIp) && !isDockerBridgeIp(lanIp)) {
+      if (!isUnreachableQrHost(lanIp)) {
         baseUrl.hostname = lanIp;
       }
     }
     return baseUrl.origin;
   }
 
-  return `http://${getLanAddress()}:${port}`;
+  const lanIp = getLanAddress();
+  if (!isUnreachableQrHost(lanIp)) {
+    return `http://${lanIp}:${port}`;
+  }
+
+  return `http://127.0.0.1:${port}`;
 }
 
 function equipmentUrl(req, equipmentId) {
@@ -581,15 +612,34 @@ app.get("/api/qr/:equipmentId", validateEquipmentIdParam, async (req, res, next)
       width: 240,
     });
 
+    const warning = describeQrUrlIssue(url);
+
     res.json({
       equipmentId: equipment.id,
       title: equipment.title,
       url,
       imageDataUrl,
+      warning,
+      publicOrigin: resolvePublicBaseUrl(req),
     });
   } catch (error) {
     next(error);
   }
+});
+
+app.get("/api/server-info", (_req, res) => {
+  const publicBaseUrl = process.env.PUBLIC_BASE_URL ? process.env.PUBLIC_BASE_URL.replace(/\/$/, "") : "";
+  const lanAddress = getLanAddress();
+  const suggestedUrl = publicBaseUrl || (isUnreachableQrHost(lanAddress) ? "" : `http://${lanAddress}:${port}`);
+
+  res.json({
+    port,
+    lanAddress,
+    publicBaseUrl,
+    suggestedPublicUrl: suggestedUrl,
+    qrConfigured: Boolean(publicBaseUrl) || !isUnreachableQrHost(lanAddress),
+    qrWarning: suggestedUrl ? describeQrUrlIssue(`${suggestedUrl}/`) : describeQrUrlIssue(`http://127.0.0.1:${port}/`),
+  });
 });
 
 app.get("/api/help-articles", async (_req, res, next) => {
@@ -1140,6 +1190,20 @@ initDb()
       console.log(`Server listening on http://${host}:${port}`);
       console.log(`LAN URL: http://${lanAddress}:${port}`);
       console.log(`SQLite database: ${dbPath}`);
+
+      if (!process.env.PUBLIC_BASE_URL) {
+        if (isUnreachableQrHost(lanAddress)) {
+          console.warn(
+            "[QR] PUBLIC_BASE_URL не задан, а LAN-адрес недоступен с телефона. " +
+              "Укажите в .env PUBLIC_BASE_URL=http://IP_ПК:8080 и открывайте админку по этому адресу.",
+          );
+        } else {
+          console.warn(
+            `[QR] PUBLIC_BASE_URL не задан. Для QR с телефона откройте админку по ` +
+              `http://${lanAddress}:${port} или задайте PUBLIC_BASE_URL в .env.`,
+          );
+        }
+      }
     });
   })
   .catch((error) => {

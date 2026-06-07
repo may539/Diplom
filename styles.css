@@ -1704,6 +1704,18 @@ main.section > .admin-card:first-child {
   color: #fca5a5;
 }
 
+.admin-qr-warning {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fdba74;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  text-align: left;
+}
+
 .admin-toast-region {
   position: fixed;
   top: 20px;

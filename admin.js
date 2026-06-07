@@ -8,6 +8,7 @@ const catalogList = document.querySelector("#equipment-catalog-list");
 const qrModal = document.querySelector("#qr-modal");
 const qrCanvas = document.querySelector("#qr-canvas");
 const qrCaption = document.querySelector("#qr-caption");
+const qrWarning = document.querySelector("#qr-warning");
 const qrModalTitle = document.querySelector("#qr-modal-title");
 const printQrButton = document.querySelector("#print-qr");
 const toastRegion = document.querySelector("#admin-toast-region");
@@ -104,7 +105,25 @@ function authHeaders() {
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
+  if (window.location.origin && window.location.protocol !== "file:") {
+    headers["X-Public-Origin"] = window.location.origin;
+  }
   return headers;
+}
+
+function showQrModal(item, payload) {
+  drawQrCode(payload.url || "");
+  qrCaption.textContent = `${item.title} — отсканируйте QR для полноэкранного просмотра на телефоне.`;
+
+  if (payload.warning) {
+    qrWarning.hidden = false;
+    qrWarning.textContent = payload.warning;
+  } else {
+    qrWarning.hidden = true;
+    qrWarning.textContent = "";
+  }
+
+  openModal(`QR: ${item.title}`);
 }
 
 function isEditing() {
@@ -238,11 +257,8 @@ async function loadCatalog() {
 
 async function showQrForEquipment(item) {
   const response = await fetch(`/api/qr/${encodeURIComponent(item.id)}`, { headers: authHeaders() });
-  const payload = response.ok ? await response.json() : { url: "", title: item.title };
-
-  drawQrCode(payload.url || "");
-  qrCaption.textContent = `${item.title} — отсканируйте QR для полноэкранного просмотра на телефоне.`;
-  openModal(`QR: ${item.title}`);
+  const payload = response.ok ? await response.json() : { url: "", title: item.title, warning: "" };
+  showQrModal(item, payload);
 }
 
 function parseFeatures(value) {
@@ -375,9 +391,13 @@ equipmentForm.addEventListener("submit", async (event) => {
     const qrResponse = await fetch(`/api/qr/${encodeURIComponent(data.id)}`, { headers: authHeaders() });
     const qrPayload = qrResponse.ok ? await qrResponse.json() : data;
 
-    drawQrCode(qrPayload.url || data.url);
-    qrCaption.textContent = `${data.title} — отсканируйте QR для полноэкранного просмотра на телефоне.`;
-    openModal(editId ? `QR: ${data.title}` : "Новая модель добавлена");
+    showQrModal(
+      { title: data.title },
+      qrResponse.ok ? qrPayload : { url: data.url || "", warning: qrPayload.warning || "" },
+    );
+    if (!editId) {
+      qrModalTitle.textContent = "Новая модель добавлена";
+    }
 
     setStatus(editId ? "Изменения сохранены. QR обновлён." : "Модель добавлена. QR-код готов к печати.");
     sessionStorage.setItem("catalogNeedsReload", "1");
