@@ -41,6 +41,15 @@ const legacySeedEquipmentIds = [
   "survey-point",
   "cadastre-parcel",
 ];
+const legacyEquipmentRedirects = {
+  "security-sensor": "video-surveillance-complex",
+  "access-terminal": "video-surveillance-complex",
+  "training-rifle": "electroshock-device",
+  "body-armor": "electroshock-device",
+  "terrain-relief": "electronic-tachymeter",
+  "survey-point": "electronic-tachymeter",
+  "cadastre-parcel": "electronic-tachymeter",
+};
 const seedModelAliases = {
   "video-surveillance-complex": [
     "Комплекс видеонаблюдения",
@@ -445,6 +454,34 @@ async function resolveSeedModel(equipment, existingRow, existingLocalRows, local
 
 function isValidEquipmentId(value) {
   return typeof value === "string" && equipmentIdPattern.test(value);
+}
+
+function resolveLegacyEquipmentId(equipmentId) {
+  return legacyEquipmentRedirects[equipmentId] || equipmentId;
+}
+
+function redirectLegacyEquipmentQuery(req, res, equipmentId) {
+  const nextId = resolveLegacyEquipmentId(equipmentId);
+  if (nextId === equipmentId) {
+    return false;
+  }
+
+  const query = new URLSearchParams(req.query);
+  query.set("id", nextId);
+  res.redirect(302, `${req.path}?${query.toString()}`);
+  return true;
+}
+
+function redirectLegacyEquipmentPath(req, res, equipmentId, pathname) {
+  const nextId = resolveLegacyEquipmentId(equipmentId);
+  if (nextId === equipmentId) {
+    return false;
+  }
+
+  const query = new URLSearchParams(req.query);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  res.redirect(302, `${pathname}/${encodeURIComponent(nextId)}${suffix}`);
+  return true;
 }
 
 function validateEquipmentIdParam(req, res, next) {
@@ -854,7 +891,13 @@ app.get("/api/equipment", async (req, res, next) => {
 
 app.get("/api/equipment/:equipmentId", validateEquipmentIdParam, async (req, res, next) => {
   try {
-    const equipment = await findEquipment(req.params.equipmentId);
+    const resolvedId = resolveLegacyEquipmentId(req.params.equipmentId);
+    if (resolvedId !== req.params.equipmentId) {
+      res.redirect(302, `/api/equipment/${encodeURIComponent(resolvedId)}`);
+      return;
+    }
+
+    const equipment = await findEquipment(resolvedId);
     if (!equipment) {
       res.status(404).json({ error: "Equipment not found" });
       return;
@@ -1312,6 +1355,10 @@ app.get(["/styles.css", "/equipment/styles.css"], (_req, res) => {
 
 app.get("/catalog/:equipmentId", validateEquipmentIdParam, async (req, res, next) => {
   try {
+    if (redirectLegacyEquipmentPath(req, res, req.params.equipmentId, "/catalog")) {
+      return;
+    }
+
     const equipment = await findEquipment(req.params.equipmentId);
     if (!equipment) {
       res.status(404).send("Equipment not found");
@@ -1330,6 +1377,10 @@ app.get("/view.html", async (req, res, next) => {
     const equipmentId = String(req.query.id || "").trim();
     if (!equipmentId || !isValidEquipmentId(equipmentId)) {
       res.status(400).send("Invalid equipment id");
+      return;
+    }
+
+    if (redirectLegacyEquipmentQuery(req, res, equipmentId)) {
       return;
     }
 
@@ -1369,17 +1420,21 @@ app.use(express.static(rootDir, { index: false }));
 
 app.get("/", async (req, res, next) => {
   try {
-    const equipmentId = req.query.id;
-    if (equipmentId && !isValidEquipmentId(String(equipmentId))) {
+    const equipmentId = String(req.query.id || "").trim();
+    if (equipmentId && !isValidEquipmentId(equipmentId)) {
       res.status(400).send("Invalid equipment id");
       return;
     }
 
+    if (equipmentId && redirectLegacyEquipmentQuery(req, res, equipmentId)) {
+      return;
+    }
+
     if (equipmentId && req.query.scan === "1") {
-      const equipment = await findEquipment(String(equipmentId));
+      const equipment = await findEquipment(equipmentId);
       if (equipment) {
         await appendScanLog(req, equipment);
-        res.redirect(302, `/view.html?id=${encodeURIComponent(String(equipmentId))}&scan=1`);
+        res.redirect(302, `/view.html?id=${encodeURIComponent(equipmentId)}&scan=1`);
         return;
       }
     }
@@ -1391,6 +1446,10 @@ app.get("/", async (req, res, next) => {
 
 app.get("/equipment/:equipmentId", validateEquipmentIdParam, async (req, res, next) => {
   try {
+    if (redirectLegacyEquipmentPath(req, res, req.params.equipmentId, "/equipment")) {
+      return;
+    }
+
     const equipment = await findEquipment(req.params.equipmentId);
     if (!equipment) {
       res.status(404).send("Equipment not found");

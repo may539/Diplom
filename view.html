@@ -17,14 +17,10 @@
       <h1 class="view-page__title" id="view-title">Загрузка модели…</h1>
     </header>
     <main class="view-page__stage">
-      <model-viewer
-        id="view-model"
-        camera-controls
-        touch-action="pan-y"
-        auto-rotate
-        rotation-per-second="12deg"
-        alt=""
-      ></model-viewer>
+      <div class="view-model-host" id="view-model-host"></div>
+      <div class="view-page__fallback" id="view-fallback" hidden>
+        WebGL отключён или недоступен в этом браузере. Откройте страницу в браузере с включённым аппаратным ускорением/WebGL.
+      </div>
       <p class="view-page__hint">Поверните и приблизьте модель жестами</p>
     </main>
     <p class="view-page__error" id="view-error" hidden></p>

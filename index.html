@@ -117,21 +117,7 @@
           <article class="viewer-card">
             <div class="viewer-shell">
               <div class="local-viewer" id="local-viewer" role="img" aria-label="Интерактивный 3D макет оборудования">
-                <model-viewer
-                  id="equipment-model-viewer"
-                  class="equipment-model-viewer"
-                  camera-controls
-                  auto-rotate
-                  auto-rotate-delay="0"
-                  rotation-per-second="30deg"
-                  touch-action="pan-y"
-                  loading="eager"
-                  reveal="auto"
-                  camera-orbit="auto auto 165%"
-                  min-camera-orbit="auto auto 70%"
-                  max-camera-orbit="auto auto 320%"
-                  field-of-view="35deg"
-                ></model-viewer>
+                <div class="equipment-model-viewer-host" id="equipment-model-viewer-host"></div>
                 <div class="local-viewer__scene" id="local-scene" hidden>
                   <div class="scene-floor"></div>
                   <div class="equipment-3d" id="equipment-shape" data-variant="sensor" aria-hidden="true">

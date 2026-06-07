@@ -11,7 +11,7 @@ const equipmentFeatures = document.querySelector("#equipment-features");
 const modelLink = document.querySelector("#model-link");
 const localViewer = document.querySelector("#local-viewer");
 const localScene = document.querySelector("#local-scene");
-const equipmentModelViewer = document.querySelector("#equipment-model-viewer");
+const equipmentModelViewerHost = document.querySelector("#equipment-model-viewer-host");
 const equipmentShape = document.querySelector("#equipment-shape");
 const hotspotLayer = document.querySelector("#hotspot-layer");
 const annotationPanel = document.querySelector("#annotation-panel");
@@ -44,12 +44,83 @@ let rotation = { x: -22, y: 38 };
 let zoom = 1;
 let modelCameraRadius = 165;
 let faqLoaded = false;
+let equipmentModelViewer = null;
 const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.8;
 const MODEL_CAMERA_RADIUS_MIN = 70;
 const MODEL_CAMERA_RADIUS_MAX = 320;
 const MODEL_CAMERA_RADIUS_DEFAULT = 165;
 const ADMIN_TOKEN_KEY = "adminToken";
+const webglSupported = supportsWebGL();
+
+function supportsWebGL() {
+  try {
+    const canvas = document.createElement("canvas");
+    return Boolean(
+      window.WebGLRenderingContext &&
+        (canvas.getContext("webgl2") ||
+          canvas.getContext("webgl") ||
+          canvas.getContext("experimental-webgl")),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function ensureEquipmentModelViewer() {
+  if (!webglSupported || !equipmentModelViewerHost) {
+    return null;
+  }
+
+  if (equipmentModelViewer) {
+    return equipmentModelViewer;
+  }
+
+  const viewer = document.createElement("model-viewer");
+  viewer.id = "equipment-model-viewer";
+  viewer.className = "equipment-model-viewer";
+  viewer.setAttribute("camera-controls", "");
+  viewer.setAttribute("auto-rotate", "");
+  viewer.setAttribute("auto-rotate-delay", "0");
+  viewer.setAttribute("rotation-per-second", "30deg");
+  viewer.setAttribute("touch-action", "pan-y");
+  viewer.setAttribute("loading", "eager");
+  viewer.setAttribute("reveal", "auto");
+  viewer.setAttribute("camera-orbit", "auto auto 165%");
+  viewer.setAttribute("min-camera-orbit", "auto auto 70%");
+  viewer.setAttribute("max-camera-orbit", "auto auto 320%");
+  viewer.setAttribute("field-of-view", "35deg");
+  viewer.addEventListener("click", handleHotspotClick);
+
+  equipmentModelViewerHost.append(viewer);
+  equipmentModelViewer = viewer;
+  return equipmentModelViewer;
+}
+
+function showCssFallback() {
+  if (equipmentModelViewer) {
+    equipmentModelViewer.hidden = true;
+    equipmentModelViewer.removeAttribute("src");
+  }
+  if (equipmentModelViewerHost) {
+    equipmentModelViewerHost.hidden = true;
+  }
+  if (localScene) {
+    localScene.hidden = false;
+  }
+}
+
+function showModelViewer() {
+  if (equipmentModelViewerHost) {
+    equipmentModelViewerHost.hidden = false;
+  }
+  if (equipmentModelViewer) {
+    equipmentModelViewer.hidden = false;
+  }
+  if (localScene) {
+    localScene.hidden = true;
+  }
+}
 
 function escapeHtml(value) {
   return String(value)
@@ -388,44 +459,52 @@ function renderActiveEquipment(equipment) {
   modelLink.textContent = "Открыть GLB-источник";
   equipmentFeatures.innerHTML = (equipment.features || []).map((feature) => `<li>${escapeHtml(feature)}</li>`).join("");
 
-  if (equipmentModelViewer) {
+  const viewer = ensureEquipmentModelViewer();
+  if (viewer) {
+    showModelViewer();
     if (typeof bindModelViewerLighting === "function") {
-      bindModelViewerLighting(equipmentModelViewer);
+      bindModelViewerLighting(viewer);
     }
 
     const applySrc = async () => {
       if (typeof setModelViewerSrc === "function") {
-        await setModelViewerSrc(equipmentModelViewer, equipment.model);
+        await setModelViewerSrc(viewer, equipment.model);
       } else {
         if (typeof applyModelCrossOrigin === "function") {
-          applyModelCrossOrigin(equipmentModelViewer, equipment.model);
+          applyModelCrossOrigin(viewer, equipment.model);
         }
         if (typeof configureModelViewer === "function") {
-          configureModelViewer(equipmentModelViewer);
+          configureModelViewer(viewer);
         }
-        equipmentModelViewer.setAttribute("src", equipment.model);
+        viewer.setAttribute("src", equipment.model);
       }
 
-      equipmentModelViewer.setAttribute("alt", equipment.title);
-      equipmentModelViewer.toggleAttribute("auto-rotate", isAutoRotate);
+      viewer.setAttribute("alt", equipment.title);
+      viewer.toggleAttribute("auto-rotate", isAutoRotate);
       setModelCameraRadius(modelCameraRadius);
       renderAnnotation(equipment.hotspots || [], -1);
     };
 
-    if (!equipmentModelViewer._textureHintBound) {
-      equipmentModelViewer._textureHintBound = true;
-      equipmentModelViewer.addEventListener("load", () => {
+    if (!viewer._textureHintBound) {
+      viewer._textureHintBound = true;
+      viewer.addEventListener("load", () => {
         if (typeof fixModelMaterials === "function") {
-          fixModelMaterials(equipmentModelViewer);
+          fixModelMaterials(viewer);
         }
         renderAnnotation(activeHotspots, activeHotspotIndex);
       });
     }
 
     void applySrc();
+  } else {
+    showCssFallback();
   }
 
   renderHotspots(equipment.hotspots || []);
+  if (!viewer) {
+    annotationPanel.innerHTML =
+      '<span>WebGL отключён или недоступен в этом браузере. GLB-модель не может отобразиться здесь; откройте страницу в браузере с включённым аппаратным ускорением/WebGL.</span>';
+  }
 }
 
 function syncActiveStates() {
@@ -471,6 +550,13 @@ function renderEquipmentNotFound() {
     equipmentModelViewer.querySelectorAll("[data-hotspot-index]").forEach((hotspot) => hotspot.remove());
     equipmentModelViewer.removeAttribute("src");
     equipmentModelViewer.alt = "";
+    equipmentModelViewer.hidden = true;
+  }
+  if (equipmentModelViewerHost) {
+    equipmentModelViewerHost.hidden = true;
+  }
+  if (localScene) {
+    localScene.hidden = true;
   }
 
   localViewer.setAttribute("aria-label", "3D модель недоступна");
