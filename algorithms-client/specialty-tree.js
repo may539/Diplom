@@ -1,6 +1,6 @@
 /**
  * Клиентский алгоритм модуля 1 (Приложение А):
- * рекурсивное построение дерева специальностей из JSON API.
+ * рекурсивное построение дерева лабораторий из JSON API.
  */
 (function initSpecialtyTreeAlgorithm(global) {
   function escapeHtml(value) {
@@ -51,6 +51,7 @@
 
   function renderSpecialtyTreeHtml(tree, options) {
     const isAvailable = options?.isAvailable || (() => true);
+    const displayTree = global.LabAdapter ? global.LabAdapter.adaptSpecialtyTree(tree) : tree;
 
     function renderLevel(nodes, depth) {
       if (!nodes.length) {
@@ -60,6 +61,7 @@
         .map((node) => {
           const available = isAvailable(node.id);
           const hasChildren = node.children && node.children.length > 0;
+          const description = node.description ? `<span class="specialty-tree__passport">${escapeHtml(node.description)}</span>` : "";
           return `
             <li class="specialty-tree__item">
               <button
@@ -70,6 +72,7 @@
               >
                 <span class="specialty-tree__code">${escapeHtml(node.code || node.id)}</span>
                 <span class="specialty-tree__name">${escapeHtml(node.name || node.title || "")}</span>
+                ${description}
               </button>
               ${hasChildren ? renderLevel(node.children, depth + 1) : ""}
             </li>
@@ -78,7 +81,7 @@
         .join("")}</ul>`;
     }
 
-    return renderLevel(tree, 0);
+    return renderLevel(displayTree, 0);
   }
 
   global.SpecialtyTreeAlgorithm = {

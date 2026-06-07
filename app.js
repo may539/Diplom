@@ -1,11 +1,12 @@
 const specialtyGrid = document.querySelector("#specialty-grid");
-const specialtyTreeRoot = document.querySelector("#specialty-tree");
 const equipmentList = document.querySelector("#equipment-list");
 const activeSpecialtyLabel = document.querySelector("#active-specialty-label");
 const equipmentCount = document.querySelector("#equipment-count");
 const equipmentType = document.querySelector("#equipment-type");
 const equipmentTitle = document.querySelector("#equipment-title");
 const equipmentDescription = document.querySelector("#equipment-description");
+const roomPassportTitle = document.querySelector("#room-passport-title");
+const roomPassportDescription = document.querySelector("#room-passport-description");
 const equipmentFeatures = document.querySelector("#equipment-features");
 const modelLink = document.querySelector("#model-link");
 const localViewer = document.querySelector("#local-viewer");
@@ -78,7 +79,17 @@ function getDefaultSpecialty() {
 }
 
 function isSpecialtyAvailable(specialtyId) {
+  if (window.LabAdapter) {
+    return window.LabAdapter.isLabAvailable(specialtyId);
+  }
   return specialtyId === ACTIVE_SPECIALTY_ID;
+}
+
+function adaptLoadedSpecialties(data) {
+  if (window.LabAdapter) {
+    return window.LabAdapter.adaptSpecialties(data);
+  }
+  return data;
 }
 
 function findEquipmentStrict(id) {
@@ -177,33 +188,12 @@ function setModelCameraRadius(nextRadius) {
   syncZoomControls();
 }
 
-async function renderSpecialtyTree() {
-  if (!specialtyTreeRoot || isFileMode || !window.SpecialtyTreeAlgorithm) {
+function renderSpecialties() {
+  if (!specialtyGrid) {
     return;
   }
 
-  try {
-    const payload = await window.SpecialtyTreeAlgorithm.fetchSpecialtyTree("/api/specialties/tree");
-    specialtyTreeRoot.innerHTML = window.SpecialtyTreeAlgorithm.renderSpecialtyTreeHtml(payload.tree, {
-      isAvailable: isSpecialtyAvailable,
-    });
-    specialtyTreeRoot.hidden = false;
-    if (specialtyGrid) {
-      specialtyGrid.hidden = true;
-    }
-  } catch (error) {
-    specialtyTreeRoot.innerHTML = "";
-    specialtyTreeRoot.hidden = true;
-    if (specialtyGrid) {
-      specialtyGrid.hidden = false;
-    }
-  }
-}
-
-function renderSpecialties() {
-  if (specialtyGrid) {
-    specialtyGrid.hidden = false;
-  }
+  specialtyGrid.hidden = false;
   specialtyGrid.innerHTML = specialties
     .map((specialty) => {
       const available = isSpecialtyAvailable(specialty.id);
@@ -416,10 +406,30 @@ function renderHotspots(hotspots = []) {
   renderAnnotation(hotspots, -1);
 }
 
+function renderRoomPassport(specialty) {
+  if (!roomPassportTitle || !roomPassportDescription) {
+    return;
+  }
+
+  if (!specialty) {
+    roomPassportTitle.textContent = "";
+    roomPassportDescription.textContent = "";
+    return;
+  }
+
+  roomPassportTitle.textContent = specialty.title || specialty.code || "";
+  roomPassportDescription.textContent = specialty.description || "";
+}
+
 function renderActiveEquipment(equipment) {
+  renderRoomPassport(findSpecialty(activeSpecialtyId));
+
   localViewer.setAttribute("aria-label", `Интерактивная 3D модель: ${equipment.title}`);
   equipmentShape.dataset.variant = equipment.variant || "sensor";
-  equipmentType.textContent = equipment.type;
+  const specialty = findSpecialty(activeSpecialtyId);
+  equipmentType.textContent = window.LabAdapter
+    ? window.LabAdapter.formatEquipmentType(equipment.type, specialty)
+    : equipment.type;
   equipmentTitle.textContent = equipment.title;
   equipmentDescription.textContent = equipment.description;
   modelLink.href = equipment.model;
@@ -493,6 +503,7 @@ function storeAdminToken(token) {
 }
 
 function renderEquipmentNotFound() {
+  renderRoomPassport(findSpecialty(activeSpecialtyId));
   equipmentType.textContent = "";
   equipmentTitle.textContent = "Объект не найден";
   equipmentDescription.textContent =
@@ -767,7 +778,7 @@ function applyInitialViewOptions() {
 
 async function loadData() {
   if (isFileMode && window.EQUIPMENT_DATA) {
-    specialties = window.EQUIPMENT_DATA;
+    specialties = adaptLoadedSpecialties(window.EQUIPMENT_DATA);
   } else {
     try {
       const response = await fetch("/api/specialties", { cache: "no-store" });
@@ -776,13 +787,13 @@ async function loadData() {
         throw new Error("Specialties API request failed");
       }
 
-      specialties = await response.json();
+      specialties = adaptLoadedSpecialties(await response.json());
     } catch (error) {
       if (!window.EQUIPMENT_DATA) {
         throw error;
       }
 
-      specialties = window.EQUIPMENT_DATA;
+      specialties = adaptLoadedSpecialties(window.EQUIPMENT_DATA);
     }
   }
 
@@ -790,13 +801,6 @@ async function loadData() {
     throw new Error("Equipment data is empty");
   }
 }
-
-specialtyTreeRoot?.addEventListener("click", async (event) => {
-  const node = event.target.closest("[data-specialty]");
-  if (!node) return;
-  await selectSpecialtyAndLoadCatalog(node.dataset.specialty);
-  document.querySelector("#viewer")?.scrollIntoView({ behavior: "smooth", block: "start" });
-});
 
 specialtyGrid?.addEventListener("click", async (event) => {
   const card = event.target.closest("[data-specialty]");
@@ -1000,7 +1004,6 @@ zoomResetButton.addEventListener("click", () => {
 async function refreshCatalogView() {
   await loadData();
   initFromLocation();
-  await renderSpecialtyTree();
   renderSpecialties();
   await refreshActiveEquipmentFromApi();
   render();
