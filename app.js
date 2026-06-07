@@ -10,6 +10,7 @@ const equipmentFeatures = document.querySelector("#equipment-features");
 const modelLink = document.querySelector("#model-link");
 const localViewer = document.querySelector("#local-viewer");
 const localScene = document.querySelector("#local-scene");
+const viewerShell = document.querySelector("#viewer-shell");
 const equipmentModelViewer = document.querySelector("#equipment-model-viewer");
 const equipmentShape = document.querySelector("#equipment-shape");
 const hotspotLayer = document.querySelector("#hotspot-layer");
@@ -384,13 +385,15 @@ function renderModelViewerHotspots(hotspots = []) {
 
 function renderHotspots(hotspots = []) {
   activeHotspots = hotspots;
-  renderModelViewerHotspots(hotspots);
 
-  if (equipmentModelViewer) {
+  if (equipmentModelViewer?.getAttribute("src")) {
+    renderModelViewerHotspots(hotspots);
     hotspotLayer.innerHTML = "";
     renderAnnotation(hotspots, -1);
     return;
   }
+
+  renderModelViewerHotspots([]);
 
   hotspotLayer.innerHTML = hotspots
     .map(
@@ -416,7 +419,39 @@ function renderHotspots(hotspots = []) {
   renderAnnotation(hotspots, -1);
 }
 
+function usesGlbModel(equipment) {
+  return Boolean(equipment?.model && /\.glb(\?|$)/i.test(String(equipment.model)));
+}
+
+async function ensureModelViewerReady() {
+  if (!equipmentModelViewer) {
+    return false;
+  }
+
+  if (window.customElements?.whenDefined) {
+    try {
+      await window.customElements.whenDefined("model-viewer");
+    } catch {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function syncViewerDisplayMode(equipment) {
+  const glbMode = usesGlbModel(equipment);
+  viewerShell?.classList.toggle("is-glb-mode", glbMode);
+  localScene.hidden = glbMode;
+  if (glbMode) {
+    localViewer.setAttribute("aria-hidden", "true");
+  } else {
+    localViewer.removeAttribute("aria-hidden");
+  }
+}
+
 function renderActiveEquipment(equipment) {
+  syncViewerDisplayMode(equipment);
   localViewer.setAttribute("aria-label", `Интерактивная 3D модель: ${equipment.title}`);
   equipmentShape.dataset.variant = equipment.variant || "sensor";
   equipmentType.textContent = equipment.type;
@@ -432,22 +467,37 @@ function renderActiveEquipment(equipment) {
     }
 
     const applySrc = async () => {
-      if (typeof setModelViewerSrc === "function") {
-        await setModelViewerSrc(equipmentModelViewer, equipment.model);
-      } else {
-        if (typeof applyModelCrossOrigin === "function") {
-          applyModelCrossOrigin(equipmentModelViewer, equipment.model);
+      if (usesGlbModel(equipment)) {
+        const ready = await ensureModelViewerReady();
+        if (!ready) {
+          return;
         }
-        if (typeof configureModelViewer === "function") {
-          configureModelViewer(equipmentModelViewer);
+
+        if (typeof setModelViewerSrc === "function") {
+          await setModelViewerSrc(equipmentModelViewer, equipment.model);
+        } else {
+          if (typeof applyModelCrossOrigin === "function") {
+            applyModelCrossOrigin(equipmentModelViewer, equipment.model);
+          }
+          if (typeof configureModelViewer === "function") {
+            configureModelViewer(equipmentModelViewer);
+          }
+          equipmentModelViewer.setAttribute("src", equipment.model);
         }
-        equipmentModelViewer.setAttribute("src", equipment.model);
+
+        equipmentModelViewer.setAttribute("alt", equipment.title);
+        equipmentModelViewer.removeAttribute("aria-hidden");
+        equipmentModelViewer.toggleAttribute("auto-rotate", isAutoRotate);
+        setModelCameraRadius(modelCameraRadius);
+        renderHotspots(equipment.hotspots || []);
+        renderAnnotation(equipment.hotspots || [], -1);
+        return;
       }
 
-      equipmentModelViewer.setAttribute("alt", equipment.title);
-      equipmentModelViewer.toggleAttribute("auto-rotate", isAutoRotate);
-      setModelCameraRadius(modelCameraRadius);
-      renderAnnotation(equipment.hotspots || [], -1);
+      equipmentModelViewer.removeAttribute("src");
+      equipmentModelViewer.setAttribute("aria-hidden", "true");
+      renderHotspots(equipment.hotspots || []);
+      renderAnnotation(equipment.hotspots || [], 0);
     };
 
     if (!equipmentModelViewer._textureHintBound) {
@@ -461,9 +511,9 @@ function renderActiveEquipment(equipment) {
     }
 
     void applySrc();
+  } else {
+    renderHotspots(equipment.hotspots || []);
   }
-
-  renderHotspots(equipment.hotspots || []);
 }
 
 function syncActiveStates() {

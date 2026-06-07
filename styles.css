@@ -583,9 +583,29 @@ model-viewer.equipment-model-viewer {
   --poster-color: transparent;
 }
 
+.viewer-shell.is-glb-mode .equipment-model-viewer {
+  z-index: 2;
+}
+
+.viewer-shell.is-glb-mode .local-viewer__scene {
+  display: none;
+}
+
+.viewer-shell.is-glb-mode .local-viewer {
+  z-index: 3;
+  pointer-events: none;
+  background: transparent;
+}
+
+.viewer-shell.is-glb-mode .viewer-zoom-controls,
+.viewer-shell.is-glb-mode .local-viewer__hint {
+  display: none;
+}
+
 .local-viewer {
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: grid;
   place-items: center;
   cursor: grab;

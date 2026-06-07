@@ -104,6 +104,9 @@ function authHeaders() {
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
+  if (window.location.origin && window.location.protocol !== "file:") {
+    headers["X-Public-Origin"] = window.location.origin;
+  }
   return headers;
 }
 
